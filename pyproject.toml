@@ -37,6 +37,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/psimodpy"]
+artifacts = ["src/psimodpy/data/PSI-MOD.obo"]
 
 [tool.uv]
 package = true
