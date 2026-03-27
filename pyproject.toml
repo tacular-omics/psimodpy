@@ -26,10 +26,10 @@ classifiers = [
 keywords = ["proteomics", "PSI-MOD", "protein modification", "ontology", "bioinformatics", "mass spectrometry"]
 
 [project.urls]
-Homepage = "https://github.com/pgarrett-scripps/psimodpy"
-Repository = "https://github.com/pgarrett-scripps/psimodpy"
-Issues = "https://github.com/pgarrett-scripps/psimodpy/issues"
-Changelog = "https://github.com/pgarrett-scripps/psimodpy/blob/main/HISTORY.md"
+Homepage = "https://github.com/tacular-omics/psimodpy"
+Repository = "https://github.com/tacular-omics/psimodpy"
+Issues = "https://github.com/tacular-omics/psimodpy/issues"
+Changelog = "https://github.com/tacular-omics/psimodpy/blob/main/HISTORY.md"
 
 [build-system]
 requires = ["hatchling"]
