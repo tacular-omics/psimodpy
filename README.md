@@ -1,18 +1,29 @@
 # psimodpy
 
 [![CI](https://github.com/pgarrett-scripps/psimodpy/actions/workflows/ci.yml/badge.svg)](https://github.com/pgarrett-scripps/psimodpy/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/psimodpy)](https://pypi.org/project/psimodpy/)
+[![PyPI version](https://img.shields.io/pypi/v/psimodpy)](https://pypi.org/project/psimodpy/)
 [![Python](https://img.shields.io/pypi/pyversions/psimodpy)](https://pypi.org/project/psimodpy/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Python library for the [PSI-MOD](https://github.com/HUPO-PSI/psi-mod-CV) protein modification ontology.
-Zero external dependencies. Python 3.12+.
+Python library for parsing and querying the [PSI-MOD](https://github.com/HUPO-PSI/psi-mod-CV) protein modification ontology.
+
+- Zero dependencies
+- Bundled PSI-MOD data (2,116 entries) — works offline out of the box
+- Typed, immutable data models (`py.typed` / PEP 561)
 
 ## Installation
 
 ```bash
 pip install psimodpy
 ```
+
+Or with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv add psimodpy
+```
+
+Requires Python 3.12+. No third-party dependencies.
 
 ## Quick Start
 
@@ -53,25 +64,25 @@ print(entry.proforma_diff_formula)  # 'O3P'
 ### Loading
 
 | Function | Description |
-|---|---|
-| `psimodpy.load()` | Load the bundled PSI-MOD database |
-| `psimodpy.load_from(path)` | Load from a custom OBO file |
-| `psimodpy.parse_obo(path)` | Parse an OBO file into a database |
-| `psimodpy.download_obo()` | Download the latest OBO file from GitHub |
+|----------|-------------|
+| `psimodpy.load()` | Load the bundled PSI-MOD database. |
+| `psimodpy.load_from(path)` | Load from a custom OBO file. |
+| `psimodpy.parse_obo(path)` | Parse an OBO file into a database. |
+| `psimodpy.download_obo()` | Download the latest OBO file from GitHub. |
 
 ### PsiModDatabase
 
 | Method | Description |
-|---|---|
-| `db[id]` | Lookup by ID (int or `"MOD:00046"`), raises `KeyError` |
-| `db.get_by_id(id)` | Lookup by ID, returns `None` if missing |
-| `db.get_by_name(name)` | Case-insensitive name lookup |
-| `db.search(query)` | Full-text search in names, definitions, synonyms |
-| `db.get_by_origin(aa)` | Find entries by amino acid origin |
-| `db.get_parents(entry)` | Direct parent entries (is_a hierarchy) |
-| `db.get_children(entry)` | Direct child entries |
-| `db.get_related(entry, type)` | Follow relationship edges (derives_from, contains, etc.) |
-| `db.filter(...)` | Filter by obsolete/slim status |
+|--------|-------------|
+| `db[id]` | Lookup by ID (int or `"MOD:00046"`), raises `KeyError`. |
+| `db.get_by_id(id)` | Lookup by ID, returns `None` if missing. |
+| `db.get_by_name(name)` | Case-insensitive name lookup. |
+| `db.search(query)` | Full-text search in names, definitions, synonyms. |
+| `db.get_by_origin(aa)` | Find entries by amino acid origin. |
+| `db.get_parents(entry)` | Direct parent entries (is_a hierarchy). |
+| `db.get_children(entry)` | Direct child entries. |
+| `db.get_related(entry, type)` | Follow relationship edges (derives_from, contains, etc.). |
+| `db.filter(...)` | Filter by obsolete/slim status. |
 
 ### PsiModEntry
 
@@ -84,23 +95,30 @@ Computed properties: `dict_diff_formula`, `dict_formula`, `proforma_diff_formula
 
 ### Data Types
 
-- `AminoAcid` — single-letter amino acid codes (A–Z)
+- `AminoAcid` — single-letter amino acid codes
 - `Crosslink` — multi-residue or MOD-referenced origins
 - `Synonym` / `SynonymType` — typed synonyms
-- `Relationship` / `RelationshipType` — directed relationships (derives_from, contains, part_of, has_functional_parent)
-- `TermSpec` — positional specificity (none, N-term, C-term)
-- `Source` — modification origin (natural, artifact, hypothetical)
+- `Relationship` / `RelationshipType` — directed relationships
+- `TermSpec` — positional specificity
+- `Source` — modification origin
 
 ## Development
 
 ```bash
 just install   # install dependencies with uv
-just lint      # ruff linting
-just format    # ruff formatting
-just ty        # ty type checking
+just lint      # ruff check
+just format    # ruff format
+just ty        # ty type check
 just test      # pytest
-just check     # lint + ty + test
+just check     # lint + type check + test
 ```
+
+## Related Projects
+
+| Package | Description |
+|---------|-------------|
+| [unimodpy](https://github.com/pgarrett-scripps/unimodpy) | Parse and query the UNIMOD mass spectrometry modifications database |
+| [uniprotptmpy](https://github.com/pgarrett-scripps/uniprotptmpy) | Parse and query the UniProt PTM controlled vocabulary |
 
 ## License
 
