@@ -113,9 +113,7 @@ class PsiModDatabase:
     def get_related(self, entry: PsiModEntry, rel_type: RelationshipType) -> list[PsiModEntry]:
         """Return entries reachable from entry via the given relationship type."""
         return [
-            self._by_id[r.target_id]
-            for r in entry.relationships
-            if r.type == rel_type and r.target_id in self._by_id
+            self._by_id[r.target_id] for r in entry.relationships if r.type == rel_type and r.target_id in self._by_id
         ]
 
     # ------------------------------------------------------------------
