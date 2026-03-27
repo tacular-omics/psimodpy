@@ -41,7 +41,9 @@ artifacts = ["src/psimodpy/data/PSI-MOD.obo"]
 
 [tool.uv]
 package = true
-dev-dependencies = [
+
+[dependency-groups]
+dev = [
     "pytest>=9.0.2",
     "ruff>=0.14.11",
     "ty>=0.0.11",
