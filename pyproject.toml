@@ -1,6 +1,6 @@
 [project]
 name = "psimodpy"
-version = "0.1.0"
+version = "0.1.2"
 description = "Python library for the PSI-MOD protein modification ontology"
 readme = "README.md"
 requires-python = ">=3.12"
