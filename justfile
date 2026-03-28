@@ -26,3 +26,14 @@ check:
 # Run tests
 test:
     uv run pytest tests
+
+# Remove build artifacts
+clean:
+    rm -rf dist
+
+
+# Build the package and check that the .obo data file is included
+build:
+    uv build
+    @echo "--- Wheel contents (*.obo files) ---"
+    @python3 -c "import zipfile, glob; [print('\n'.join(f for f in zipfile.ZipFile(w).namelist() if f.endswith('.obo'))) for w in glob.glob('dist/*.whl')]"
