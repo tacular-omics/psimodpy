@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PSI-MOD Browser — psimodpy</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;color:#1a202c;min-height:100vh;font-size:14px}
+a{color:#3b82f6;text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;font-size:.9em}
+header{background:#1e293b;color:#f8fafc;padding:1.25rem 1.5rem}
+.hi{max-width:1300px;margin:0 auto;display:flex;gap:1rem;justify-content:space-between;flex-wrap:wrap;align-items:flex-start}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.03em}
+.sub{color:#94a3b8;font-size:.85rem;margin-top:.2rem}
+.hm{display:flex;align-items:center;gap:.4rem;margin-top:.6rem;flex-wrap:wrap}
+.ct{background:#3b82f6;color:#fff;font-size:.75rem;font-weight:700;padding:.15rem .55rem;border-radius:999px}
+.pl{background:#334155;color:#cbd5e1;font-size:.75rem;padding:.15rem .55rem;border-radius:999px}
+.pl:hover{background:#475569;text-decoration:none;color:#f8fafc}
+.rel{color:#94a3b8;font-size:.8rem;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;align-self:flex-end}
+.rel a{color:#93c5fd}
+main{max-width:1300px;margin:1rem auto;padding:0 1rem}
+.tb{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem}
+.tb input[type=search]{flex:1;min-width:180px;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.875rem;background:#fff;outline:none;color:#1a202c}
+.tb input[type=search]:focus{border-color:#3b82f6;box-shadow:0 0 0 3px #dbeafe80}
+.tb select{padding:.45rem .65rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.8rem;background:#fff;outline:none;cursor:pointer;color:#374151}
+.tb select:focus{border-color:#3b82f6}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;flex-wrap:wrap;gap:.4rem}
+.rc{font-size:.8rem;color:#6b7280}
+.pc{display:flex;align-items:center;gap:.4rem}
+.pc select{padding:.3rem .5rem;border:1px solid #d1d5db;border-radius:.4rem;font-size:.8rem;background:#fff;cursor:pointer}
+.pc button{padding:.3rem .65rem;border:1px solid #d1d5db;background:#fff;border-radius:.4rem;cursor:pointer;font-size:.8rem;color:#374151;line-height:1.2}
+.pc button:hover:not(:disabled){background:#f9fafb;border-color:#9ca3af}
+.pc button:disabled{opacity:.35;cursor:default}
+.pi{font-size:.8rem;color:#6b7280;min-width:60px;text-align:center}
+.tw{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;overflow:hidden;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+thead{background:#f9fafb}
+th{padding:.65rem .9rem;text-align:left;font-weight:600;color:#374151;border-bottom:2px solid #e5e7eb;white-space:nowrap;user-select:none}
+th[data-col]{cursor:pointer}
+th[data-col]:hover{background:#f0f4f8}
+.si::after{content:" ↕";color:#d1d5db}
+.sa::after{content:" ↑";color:#3b82f6}
+.sd::after{content:" ↓";color:#3b82f6}
+td{padding:.55rem .9rem;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.dr:hover td{background:#fafafa;cursor:pointer}
+.dr.exp td{background:#eff6ff}
+.dr.exp td:first-child{border-left:3px solid #3b82f6;padding-left:.65rem}
+.dtr td{padding:0}
+.di{padding:.9rem 1.25rem;background:#f8fafc;border-bottom:1px solid #e5e7eb}
+.ic{font-family:ui-monospace,monospace;color:#2563eb;font-weight:600;font-size:.82rem;white-space:nowrap}
+.nc{font-weight:500}
+.fc{font-family:ui-monospace,monospace;color:#7c3aed;font-size:.82rem}
+.mc{font-family:ui-monospace,monospace;font-size:.82rem;text-align:right;white-space:nowrap}
+.tags{display:flex;flex-wrap:wrap;gap:.2rem}
+.tag{border-radius:.3rem;padding:.1rem .4rem;font-size:.72rem;white-space:nowrap;border:1px solid;line-height:1.4}
+.tb0{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+.tg0{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+.tp0{background:#faf5ff;color:#6d28d9;border-color:#ddd6fe}
+.to0{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.tgr{background:#f9fafb;color:#6b7280;border-color:#e5e7eb}
+.trd{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+.dg{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.65rem;margin-bottom:.5rem}
+.dl{font-size:.72rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem}
+.dv{font-size:.84rem;color:#1a202c;word-break:break-word}
+.mono{font-family:ui-monospace,monospace;font-size:.85em}
+.st{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.5rem;border:1px solid #e5e7eb}
+.st th{background:#f1f5f9;padding:.35rem .65rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb}
+.st td{padding:.3rem .65rem;border-bottom:1px solid #f1f5f9}
+.st tr:last-child td{border-bottom:none}
+.nr{text-align:center;padding:2.5rem;color:#9ca3af}
+@media(max-width:640px){header{padding:1rem}.hi{flex-direction:column}main{padding:0 .5rem}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hi">
+    <div>
+      <h1>psimodpy</h1>
+      <p class="sub">PSI-MOD protein modification ontology</p>
+      <div class="hm">
+        <span class="ct" id="ec">loading…</span>
+        <a class="pl" href="https://pypi.org/project/psimodpy/" target="_blank" rel="noopener">PyPI</a>
+        <a class="pl" href="https://github.com/tacular-omics/psimodpy" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+    <nav class="rel">
+      <span>Related:</span>
+      <a href="https://tacular-omics.github.io/unimodpy/">unimodpy</a>
+      <a href="https://tacular-omics.github.io/uniprotptmpy/">uniprotptmpy</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="tb">
+    <input type="search" id="q" placeholder="Search name, ID, definition, synonym…" autocomplete="off">
+    <select id="for"><option value="">All origins</option></select>
+    <select id="fsr"><option value="">All sources</option></select>
+    <select id="fob">
+      <option value="active">Active only</option>
+      <option value="all">All entries</option>
+      <option value="obsolete">Obsolete only</option>
+    </select>
+    <select id="fsl"><option value="">All subsets</option><option value="slim">Slim subset only</option></select>
+  </div>
+  <div class="bar">
+    <span class="rc" id="rc">Loading…</span>
+    <div class="pc">
+      <select id="pp"><option value="50">50/page</option><option value="100">100/page</option><option value="250">250/page</option><option value="0">All</option></select>
+      <button id="pv" disabled>‹</button>
+      <span class="pi" id="pi"></span>
+      <button id="nx" disabled>›</button>
+    </div>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr>
+        <th data-col="id"><span class="si">ID</span></th>
+        <th data-col="name"><span class="si">Name</span></th>
+        <th>Origin</th>
+        <th data-col="diff_mono" style="text-align:right"><span class="si">Δ Mono (Da)</span></th>
+        <th>Formula</th>
+        <th>Source</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+<script>
+'use strict';
+let ALL=[],filtered=[],sortCol='id',sortDir=1,page=0,perPage=50;
+const SRC={natural:'tg0',artifact:'tgr',artifactual:'tgr',hypothetical:'to0',none:'tgr'};
+function fmtId(id){return'MOD:'+String(id).padStart(5,'0');}
+function fmtOrigin(o){
+  if(!o)return'<span style="color:#d1d5db">—</span>';
+  if(typeof o==='string')return`<span class="tag tb0">${x(o)}</span>`;
+  if(o.type==='crosslink')return`<span class="tag tp0">XL:${o.sites.join('–')}</span>`;
+  return x(String(o));
+}
+async function init(){
+  const r=await fetch('data.json');
+  ALL=await r.json();
+  document.getElementById('ec').textContent=ALL.length+' entries';
+  const origs=new Set,srcs=new Set;
+  for(const e of ALL){
+    if(e.origin!==null){
+      if(typeof e.origin==='string')origs.add(e.origin);
+      else origs.add('Crosslink');
+    }
+    if(e.source)srcs.add(e.source);
+  }
+  fill('for',[...origs].sort());
+  fill('fsr',[...srcs].sort());
+  update();
+}
+function fill(id,vals){const s=document.getElementById(id);vals.forEach(v=>{const o=document.createElement('option');o.value=o.textContent=v;s.appendChild(o);});}
+function update(){page=0;applyFilters();applySort();render();}
+function applyFilters(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const fo=document.getElementById('for').value,fsr=document.getElementById('fsr').value;
+  const fob=document.getElementById('fob').value,fsl=document.getElementById('fsl').value;
+  filtered=ALL.filter(e=>{
+    if(fob==='active'&&e.is_obsolete)return false;
+    if(fob==='obsolete'&&!e.is_obsolete)return false;
+    if(fsl==='slim'&&!e.in_slim_subset)return false;
+    if(q){
+      const syns=(e.synonyms||[]).map(s=>s.value).join(' ');
+      const h=`${fmtId(e.id)} ${e.name} ${e.definition||''} ${syns}`.toLowerCase();
+      if(!h.includes(q))return false;
+    }
+    if(fo){
+      if(fo==='Crosslink'){if(!e.origin||typeof e.origin!=='object')return false;}
+      else{if(e.origin!==fo)return false;}
+    }
+    if(fsr&&e.source!==fsr)return false;
+    return true;
+  });
+}
+function applySort(){
+  filtered.sort((a,b)=>{
+    let av=a[sortCol],bv=b[sortCol];
+    if(av==null)av=sortCol==='diff_mono'?Infinity:'';
+    if(bv==null)bv=sortCol==='diff_mono'?Infinity:'';
+    return(typeof av==='number'?(av-bv):String(av).localeCompare(String(bv)))*sortDir;
+  });
+}
+function getPage(){if(!perPage)return filtered;return filtered.slice(page*perPage,(page+1)*perPage);}
+function render(){
+  const tbody=document.getElementById('tbody');
+  const rows=getPage();
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" class="nr">No entries match your search.</td></tr>';updateBar();return;}
+  tbody.innerHTML='';
+  for(const e of rows){
+    const tr=document.createElement('tr');tr.className='dr';
+    const statTags=[];
+    if(e.in_slim_subset)statTags.push('<span class="tag tg0">slim</span>');
+    if(e.is_obsolete)statTags.push('<span class="tag trd">obsolete</span>');
+    tr.innerHTML=`<td class="ic">${fmtId(e.id)}</td>
+<td class="nc">${x(e.name)}</td>
+<td>${fmtOrigin(e.origin)}</td>
+<td class="mc">${e.diff_mono!=null?e.diff_mono.toFixed(6):'<span style="color:#d1d5db">—</span>'}</td>
+<td class="fc">${e.proforma_diff_formula?`<code>${x(e.proforma_diff_formula)}</code>`:'<span style="color:#d1d5db">—</span>'}</td>
+<td>${e.source?`<span class="tag ${SRC[e.source]||'tgr'}">${x(e.source)}</span>`:'<span style="color:#d1d5db">—</span>'}</td>
+<td><div class="tags">${statTags.join('')||'<span style="color:#d1d5db">—</span>'}</div></td>`;
+    tr.addEventListener('click',()=>toggle(tr,e));
+    tbody.appendChild(tr);
+  }
+  updateBar();
+}
+function toggle(tr,e){
+  const nx=tr.nextElementSibling;
+  if(nx&&nx.classList.contains('dtr')){nx.remove();tr.classList.remove('exp');return;}
+  document.querySelectorAll('.dr.exp').forEach(r=>{r.classList.remove('exp');const n=r.nextElementSibling;if(n&&n.classList.contains('dtr'))n.remove();});
+  tr.classList.add('exp');
+  const d=document.createElement('tr');d.className='dtr';
+  d.innerHTML=`<td colspan="7"><div class="di">${detail(e)}</div></td>`;
+  tr.after(d);
+}
+function detail(e){
+  const synRows=(e.synonyms||[]).map(s=>`<tr><td>${x(s.value)}</td><td class="mono" style="color:#6b7280;font-size:.75rem">${x(s.type)}</td></tr>`).join('');
+  const parents=(e.is_a||[]).map(id=>`<span class="tag tgr mono">${fmtId(id)}</span>`).join(' ')||'—';
+  const rels=(e.relationships||[]).map(r=>`<div style="font-size:.82rem"><span style="color:#6b7280">${x(r.type)}</span> → <span class="mono">${fmtId(r.target_id)}</span></div>`).join('')||'—';
+  const xrefs=[];
+  if(e.xref_unimod)xrefs.push(`<div><span class="tag tb0">Unimod</span> ${x(e.xref_unimod)}</div>`);
+  if(e.xref_uniprot_ptm)xrefs.push(`<div><span class="tag tg0">UniProt PTM</span> ${x(e.xref_uniprot_ptm)}</div>`);
+  if(e.xref_gnome)xrefs.push(`<div><span class="tag tp0">GNOme</span> ${x(e.xref_gnome)}</div>`);
+  if(e.xref_remap!=null)xrefs.push(`<div><span class="tag trd">Remap</span> ${fmtId(e.xref_remap)}</div>`);
+  return `<div class="dg">
+<div style="grid-column:1/-1"><div class="dl">Definition</div><div class="dv">${x(e.definition||'—')}</div></div>
+<div><div class="dl">Monoisotopic Mass</div><div class="dv mono">${e.mass_mono!=null?e.mass_mono.toFixed(6)+' Da':'—'}</div></div>
+<div><div class="dl">Average Mass</div><div class="dv mono">${e.mass_avg!=null?e.mass_avg.toFixed(4)+' Da':'—'}</div></div>
+<div><div class="dl">Δ Average</div><div class="dv mono">${e.diff_avg!=null?e.diff_avg.toFixed(4)+' Da':'—'}</div></div>
+${e.term_spec&&e.term_spec!=='none'?`<div><div class="dl">Term Specificity</div><div class="dv">${x(e.term_spec)}</div></div>`:''}
+${e.formal_charge!=null?`<div><div class="dl">Formal Charge</div><div class="dv mono">${e.formal_charge>0?'+':''}${e.formal_charge}</div></div>`:''}
+</div>
+${synRows?`<div style="margin-top:.75rem"><div class="dl">Synonyms (${e.synonyms.length})</div>
+<table class="st"><thead><tr><th>Synonym</th><th>Type</th></tr></thead><tbody>${synRows}</tbody></table></div>`:''}
+<div class="dg" style="margin-top:.75rem">
+<div><div class="dl">Parent Terms (is_a)</div><div class="dv" style="margin-top:.2rem">${parents}</div></div>
+${rels!=='—'?`<div><div class="dl">Relationships</div><div class="dv" style="margin-top:.2rem">${rels}</div></div>`:''}
+${xrefs.length?`<div><div class="dl">Cross-References</div><div class="dv" style="margin-top:.25rem;display:flex;flex-direction:column;gap:.2rem">${xrefs.join('')}</div></div>`:''}
+</div>`;
+}
+function updateBar(){
+  const t=filtered.length,tp=perPage?Math.ceil(t/perPage):1;
+  const s=t?page*perPage+1:0,e2=perPage?Math.min((page+1)*perPage,t):t;
+  document.getElementById('rc').textContent=t===0?'No entries found':`Showing ${s}–${e2} of ${t} entries`;
+  document.getElementById('pi').textContent=perPage&&tp>1?`${page+1}/${tp}`:'';
+  document.getElementById('pv').disabled=page===0;
+  document.getElementById('nx').disabled=!perPage||page>=tp-1;
+  document.querySelectorAll('th[data-col]').forEach(th=>{
+    const sp=th.querySelector('span');if(sp)sp.className=th.dataset.col===sortCol?(sortDir===1?'sa':'sd'):'si';
+  });
+}
+function x(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+let dt;
+document.getElementById('q').addEventListener('input',()=>{clearTimeout(dt);dt=setTimeout(update,200);});
+['for','fsr','fob','fsl'].forEach(id=>document.getElementById(id).addEventListener('change',update));
+document.getElementById('pp').addEventListener('change',e=>{perPage=+e.target.value;page=0;render();});
+document.getElementById('pv').addEventListener('click',()=>{if(page>0){page--;render();}});
+document.getElementById('nx').addEventListener('click',()=>{if(perPage&&page<Math.ceil(filtered.length/perPage)-1){page++;render();}});
+document.querySelectorAll('th[data-col]').forEach(th=>{th.addEventListener('click',()=>{
+  const c=th.dataset.col;sortDir=sortCol===c?-sortDir:1;sortCol=c;applySort();render();
+});});
+init().catch(e=>{document.getElementById('tbody').innerHTML=`<tr><td colspan="7" class="nr">Error loading data: ${x(e.message)}</td></tr>`;document.getElementById('rc').textContent='Error';});
+</script>
+</body>
+</html>
