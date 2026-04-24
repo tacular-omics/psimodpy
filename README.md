@@ -11,6 +11,9 @@ Python library for parsing and querying the [PSI-MOD](https://github.com/HUPO-PS
 - Bundled PSI-MOD data (2,116 entries) — works offline out of the box
 - Typed, immutable data models (`py.typed` / PEP 561)
 
+## Online Viewer
+#### [Click Me!](https://tacular-omics.github.io/psimodpy/)
+
 ## Installation
 
 ```bash
