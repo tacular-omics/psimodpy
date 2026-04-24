@@ -19,6 +19,7 @@ for entry in db:
         "id": entry.id,
         "name": entry.name,
         "definition": entry.definition,
+        "comment": entry.comment,
         "synonyms": [
             {"value": s.value, "type": str(s.type)} for s in entry.synonyms
         ],

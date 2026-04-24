@@ -250,13 +250,21 @@ function detail(e){
   if(e.xref_uniprot_ptm)xrefs.push(`<div><span class="tag tg0">UniProt PTM</span> ${x(e.xref_uniprot_ptm)}</div>`);
   if(e.xref_gnome)xrefs.push(`<div><span class="tag tp0">GNOme</span> ${x(e.xref_gnome)}</div>`);
   if(e.xref_remap!=null)xrefs.push(`<div><span class="tag trd">Remap</span> ${fmtId(e.xref_remap)}</div>`);
-  return `<div class="dg">
-<div style="grid-column:1/-1"><div class="dl">Definition</div><div class="dv">${x(e.definition||'—')}</div></div>
+  const statTags=[];
+  if(e.in_slim_subset)statTags.push('<span class="tag tg0">slim</span>');
+  if(e.is_obsolete)statTags.push('<span class="tag trd">obsolete</span>');
+  return `<div class="dg" style="grid-column:1/-1"><div class="dl">Definition</div><div class="dv">${x(e.definition||'—')}</div></div>
+<div class="dg">
+<div><div class="dl">Δ Monoisotopic</div><div class="dv mono">${e.diff_mono!=null?e.diff_mono.toFixed(6)+' Da':'—'}</div></div>
+<div><div class="dl">Δ Average</div><div class="dv mono">${e.diff_avg!=null?e.diff_avg.toFixed(4)+' Da':'—'}</div></div>
 <div><div class="dl">Monoisotopic Mass</div><div class="dv mono">${e.mass_mono!=null?e.mass_mono.toFixed(6)+' Da':'—'}</div></div>
 <div><div class="dl">Average Mass</div><div class="dv mono">${e.mass_avg!=null?e.mass_avg.toFixed(4)+' Da':'—'}</div></div>
-<div><div class="dl">Δ Average</div><div class="dv mono">${e.diff_avg!=null?e.diff_avg.toFixed(4)+' Da':'—'}</div></div>
+${e.proforma_diff_formula?`<div><div class="dl">Δ Formula</div><div class="dv mono"><code>${x(e.proforma_diff_formula)}</code></div></div>`:''}
+${e.origin!==null&&e.origin!==undefined?`<div><div class="dl">Origin</div><div class="dv">${fmtOrigin(e.origin)}</div></div>`:''}
+${e.source?`<div><div class="dl">Source</div><div class="dv"><span class="tag ${SRC[e.source]||'tgr'}">${x(e.source)}</span></div></div>`:''}
 ${e.term_spec&&e.term_spec!=='none'?`<div><div class="dl">Term Specificity</div><div class="dv">${x(e.term_spec)}</div></div>`:''}
 ${e.formal_charge!=null?`<div><div class="dl">Formal Charge</div><div class="dv mono">${e.formal_charge>0?'+':''}${e.formal_charge}</div></div>`:''}
+${statTags.length?`<div><div class="dl">Status</div><div class="dv" style="display:flex;gap:.2rem;flex-wrap:wrap">${statTags.join('')}</div></div>`:''}
 </div>
 ${synRows?`<div style="margin-top:.75rem"><div class="dl">Synonyms (${e.synonyms.length})</div>
 <table class="st"><thead><tr><th>Synonym</th><th>Type</th></tr></thead><tbody>${synRows}</tbody></table></div>`:''}
