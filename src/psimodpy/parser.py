@@ -256,4 +256,6 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
         if entry is not None:
             entries.append(entry)
 
+    while header_lines and header_lines[-1] == "":
+        header_lines.pop()
     return PsiModDatabase(entries, header_lines=tuple(header_lines))
