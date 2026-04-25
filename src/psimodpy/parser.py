@@ -22,8 +22,8 @@ if TYPE_CHECKING:
     from psimodpy.database import PsiModDatabase
 
 # Compiled regexes (module-level, compiled once)
-_DEF_RE = re.compile(r'^def: "(.+?)"')
-_SYNONYM_RE = re.compile(r'^synonym: "(.+?)"\s+\w+\s+(\S+)\s+\[\]')
+_DEF_RE = re.compile(r'^def:\s+"(.+?)"\s+\[([^\]]*)\]')
+_SYNONYM_RE = re.compile(r'^synonym:\s+"(.+?)"\s+(\w+)\s+(\S+)\s+\[\]')
 _IS_A_RE = re.compile(r"^is_a:\s+MOD:(\d+)")
 _RELATIONSHIP_RE = re.compile(r"^relationship:\s+(\S+)\s+MOD:(\d+)")
 _XREF_RE = re.compile(r'^xref:\s+([^:]+):\s+"(.+?)"$')
@@ -81,6 +81,7 @@ def _build_entry(block: list[str]) -> PsiModEntry | None:
     entry_id: int | None = None
     name: str | None = None
     definition: str = ""
+    definition_ref: str = "[]"
     synonyms: list[Synonym] = []
     is_a: list[int] = []
     relationships: list[Relationship] = []
@@ -99,12 +100,13 @@ def _build_entry(block: list[str]) -> PsiModEntry | None:
             m = _DEF_RE.match(line)
             if m:
                 definition = m.group(1)
+                definition_ref = f"[{m.group(2)}]"
         elif line.startswith("synonym: "):
             m = _SYNONYM_RE.match(line)
             if m:
-                value, type_str = m.group(1), m.group(2)
+                value, scope, type_str = m.group(1), m.group(2), m.group(3)
                 try:
-                    synonyms.append(Synonym(value=value, type=SynonymType(type_str)))
+                    synonyms.append(Synonym(value=value, type=SynonymType(type_str), scope=scope))
                 except ValueError:
                     pass  # unknown synonym type — skip
         elif line.startswith("is_a: "):
@@ -192,6 +194,7 @@ def _build_entry(block: list[str]) -> PsiModEntry | None:
         xref_remap=xref_remap,
         in_slim_subset=in_slim_subset,
         is_obsolete=is_obsolete,
+        definition_ref=definition_ref,
     )
 
 
@@ -208,8 +211,10 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
 
     path = Path(path)
     entries: list[PsiModEntry] = []
+    header_lines: list[str] = []
     current_block: list[str] = []
     in_term = False
+    past_header = False
 
     with path.open(encoding="utf-8") as fh:
         for raw_line in fh:
@@ -217,6 +222,7 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
 
             if line == "[Term]":
                 in_term = True
+                past_header = True
                 current_block = []
                 continue
 
@@ -227,6 +233,7 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
                     if entry is not None:
                         entries.append(entry)
                 in_term = False
+                past_header = True
                 current_block = []
                 continue
 
@@ -240,6 +247,8 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
                     current_block = []
                 else:
                     current_block.append(line)
+            elif not past_header:
+                header_lines.append(line)
 
     # Handle last block if file doesn't end with blank line
     if in_term and current_block:
@@ -247,4 +256,4 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
         if entry is not None:
             entries.append(entry)
 
-    return PsiModDatabase(entries)
+    return PsiModDatabase(entries, header_lines=tuple(header_lines))

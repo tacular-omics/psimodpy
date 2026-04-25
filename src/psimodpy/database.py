@@ -12,11 +12,17 @@ from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, RelationshipType
 class PsiModDatabase:
     """In-memory database of PSI-MOD entries with multiple lookup strategies."""
 
-    def __init__(self, entries: list[PsiModEntry] | Iterator[PsiModEntry]) -> None:
+    def __init__(
+        self,
+        entries: list[PsiModEntry] | Iterator[PsiModEntry],
+        *,
+        header_lines: tuple[str, ...] = (),
+    ) -> None:
         self._by_id: dict[int, PsiModEntry] = {}
         self._by_name_lower: dict[str, PsiModEntry] = {}
         self._by_origin: dict[str, list[PsiModEntry]] = {}
         self._children: dict[int, list[int]] = {}
+        self.header_lines: tuple[str, ...] = header_lines
 
         for entry in entries:
             self._by_id[entry.id] = entry
@@ -138,6 +144,18 @@ class PsiModDatabase:
         if slim_only:
             entries = [e for e in entries if e.in_slim_subset]
         return entries
+
+    def write_tsv(self, path: Path | str, *, delimiter: str = "\t") -> Path:
+        """Serialize all entries to a tab-separated file. Pass ``delimiter=','`` for CSV."""
+        from psimodpy._tabular import write_tsv
+
+        return write_tsv(self._by_id.values(), path, delimiter=delimiter)
+
+    def write_obo(self, path: Path | str) -> Path:
+        """Serialize all entries to PSI-MOD OBO format."""
+        from psimodpy._obo_writer import write_obo
+
+        return write_obo(self._by_id.values(), path, header_lines=self.header_lines)
 
 
 def load(*, include_obsolete: bool = True) -> PsiModDatabase:

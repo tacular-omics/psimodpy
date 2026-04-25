@@ -98,6 +98,7 @@ class Synonym:
 
     value: str
     type: SynonymType
+    scope: str = "EXACT"
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +180,9 @@ class PsiModEntry:
 
     is_obsolete: bool
     """True if this entry is marked obsolete in the OBO file."""
+
+    definition_ref: str = "[]"
+    """Citation block from the def: line, e.g. '[PubMed:18688235]'."""
 
     @property
     def dict_diff_formula(self) -> dict[str, int] | None:
