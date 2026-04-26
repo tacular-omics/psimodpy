@@ -25,6 +25,13 @@ classifiers = [
 ]
 keywords = ["proteomics", "PSI-MOD", "protein modification", "ontology", "bioinformatics", "mass spectrometry"]
 
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "mcp>=1.2",
+]
+
 [project.urls]
 Homepage = "https://github.com/tacular-omics/psimodpy"
 Repository = "https://github.com/tacular-omics/psimodpy"
@@ -71,4 +78,3 @@ select = [
     "B",   # flake8-bugbear
     "UP",  # pyupgrade
 ]
-
