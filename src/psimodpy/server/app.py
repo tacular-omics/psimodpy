@@ -20,56 +20,58 @@ _VERSION = _pkg_version(_PACKAGE)
 # MCP server (mounted at /, exposes its own /mcp route)
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP(
-    _PACKAGE,
-    instructions="Query the PSI-MOD protein modification ontology.",
-    stateless_http=True,
-    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
-)
+
+def _build_mcp() -> FastMCP:
+    mcp = FastMCP(
+        _PACKAGE,
+        instructions="Query the PSI-MOD protein modification ontology.",
+        stateless_http=True,
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
+
+    @mcp.tool()
+    def get_by_id(id: str) -> dict | None:
+        """Look up a PSI-MOD entry by ID. Accepts ``"46"`` or ``"MOD:00046"``."""
+        entry = _db.get_by_id(id)
+        return serialize_entry(entry) if entry else None
+
+    @mcp.tool()
+    def get_by_name(name: str) -> dict | None:
+        """Look up a PSI-MOD entry by exact name (case-insensitive)."""
+        entry = _db.get_by_name(name)
+        return serialize_entry(entry) if entry else None
+
+    @mcp.tool()
+    def search(query: str, limit: int = 25) -> list[dict]:
+        """Full-text search over names, definitions, and synonyms. Returns up to ``limit`` results."""
+        return [serialize_entry(e) for e in _db.search(query)[:limit]]
+
+    @mcp.tool()
+    def get_parents(id: str) -> list[dict]:
+        """Return direct ``is_a`` parents of the given entry."""
+        entry = _db.get_by_id(id)
+        if entry is None:
+            return []
+        return [serialize_entry(p) for p in _db.get_parents(entry)]
+
+    @mcp.tool()
+    def get_children(id: str) -> list[dict]:
+        """Return entries with the given entry as a direct ``is_a`` parent."""
+        entry = _db.get_by_id(id)
+        if entry is None:
+            return []
+        return [serialize_entry(c) for c in _db.get_children(entry)]
+
+    @mcp.tool()
+    def get_by_origin(aa: str) -> list[dict]:
+        """Return entries whose origin includes the given single-letter amino acid code."""
+        return [serialize_entry(e) for e in _db.get_by_origin(aa)]
+
+    return mcp
 
 
-@mcp.tool()
-def get_by_id(id: str) -> dict | None:
-    """Look up a PSI-MOD entry by ID. Accepts ``"46"`` or ``"MOD:00046"``."""
-    entry = _db.get_by_id(id)
-    return serialize_entry(entry) if entry else None
-
-
-@mcp.tool()
-def get_by_name(name: str) -> dict | None:
-    """Look up a PSI-MOD entry by exact name (case-insensitive)."""
-    entry = _db.get_by_name(name)
-    return serialize_entry(entry) if entry else None
-
-
-@mcp.tool()
-def search(query: str, limit: int = 25) -> list[dict]:
-    """Full-text search over names, definitions, and synonyms. Returns up to ``limit`` results."""
-    return [serialize_entry(e) for e in _db.search(query)[:limit]]
-
-
-@mcp.tool()
-def get_parents(id: str) -> list[dict]:
-    """Return direct ``is_a`` parents of the given entry."""
-    entry = _db.get_by_id(id)
-    if entry is None:
-        return []
-    return [serialize_entry(p) for p in _db.get_parents(entry)]
-
-
-@mcp.tool()
-def get_children(id: str) -> list[dict]:
-    """Return entries with the given entry as a direct ``is_a`` parent."""
-    entry = _db.get_by_id(id)
-    if entry is None:
-        return []
-    return [serialize_entry(c) for c in _db.get_children(entry)]
-
-
-@mcp.tool()
-def get_by_origin(aa: str) -> list[dict]:
-    """Return entries whose origin includes the given single-letter amino acid code."""
-    return [serialize_entry(e) for e in _db.get_by_origin(aa)]
+# Module-level instance for inspection / re-export.
+mcp = _build_mcp()
 
 
 # ---------------------------------------------------------------------------
@@ -77,15 +79,14 @@ def get_by_origin(aa: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-# Vercel doesn't fire ASGI lifespan events, so we start the session manager per request.
+# Vercel doesn't fire ASGI lifespan events, and StreamableHTTPSessionManager.run()
+# can only be called once per instance, so we build a fresh FastMCP per request.
 class _MCPWrapper:
-    def __init__(self, mcp: FastMCP) -> None:
-        self._inner = mcp.streamable_http_app()
-        self._mcp = mcp
-
     async def __call__(self, scope, receive, send) -> None:
-        async with self._mcp.session_manager.run():
-            await self._inner(scope, receive, send)
+        m = _build_mcp()
+        http_app = m.streamable_http_app()
+        async with m.session_manager.run():
+            await http_app(scope, receive, send)
 
 
 app = FastAPI(
@@ -174,4 +175,4 @@ def search_entries(
 
 
 # Mount MCP at the root; its inner app exposes /mcp.
-app.mount("/", _MCPWrapper(mcp))
+app.mount("/", _MCPWrapper())
