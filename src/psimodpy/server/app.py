@@ -77,6 +77,7 @@ def get_by_origin(aa: str) -> list[dict]:
 # REST API
 # ---------------------------------------------------------------------------
 
+
 @asynccontextmanager
 async def _lifespan(_: FastAPI):
     async with mcp.session_manager.run():
