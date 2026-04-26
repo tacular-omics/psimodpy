@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pip install . && python scripts/export_json.py",
+  "outputDirectory": "docs",
   "functions": {
     "api/index.py": {
       "runtime": "@vercel/python@4.3.0",
@@ -7,6 +9,8 @@
     }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/mcp", "destination": "/api/index" },
+    { "source": "/mcp/:path*", "destination": "/api/index" }
   ]
 }
