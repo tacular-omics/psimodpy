@@ -10,6 +10,7 @@ Python library for parsing and querying the [PSI-MOD](https://github.com/HUPO-PS
 - Zero dependencies
 - Bundled PSI-MOD data (2,116 entries) — works offline out of the box
 - Typed, immutable data models (`py.typed` / PEP 561)
+- TSV/CSV export and round-trip OBO writer
 
 ## Online Viewer
 #### [Click Me!](https://tacular-omics.github.io/psimodpy/)
@@ -62,6 +63,37 @@ print(entry.dict_diff_formula)      # {'C': 0, 'H': 0, 'N': 0, 'O': 3, 'P': 1}
 print(entry.proforma_diff_formula)  # 'O3P'
 ```
 
+## Exporting to TSV/CSV
+
+```python
+# Write all entries to a tab-separated file
+db.write_tsv("psimod.tsv")
+
+# Or CSV
+db.write_tsv("psimod.csv", delimiter=",")
+
+# Standalone function
+from psimodpy import write_tsv
+write_tsv(db, "psimod.tsv")
+```
+
+The TSV includes one row per entry. Dynamic synonym columns (e.g. `synonym_psi_mod_label`,
+`synonym_omssa_label`) are added for each `SynonymType` found in the data.
+
+## Writing back to OBO format
+
+```python
+# Round-trip: write entries back to PSI-MOD OBO format
+db.write_obo("out/psi-mod.obo")
+
+# Re-parse — identical entry count and field values
+db2 = psimodpy.parse_obo("out/psi-mod.obo")
+
+# Standalone function; pass original header lines for a faithful round-trip
+from psimodpy import write_obo
+write_obo(db, "out/psi-mod.obo", header_lines=db.header_lines)
+```
+
 ## API Overview
 
 ### Loading
@@ -72,6 +104,8 @@ print(entry.proforma_diff_formula)  # 'O3P'
 | `psimodpy.load_from(path)` | Load from a custom OBO file. |
 | `psimodpy.parse_obo(path)` | Parse an OBO file into a database. |
 | `psimodpy.download_obo()` | Download the latest OBO file from GitHub. |
+| `psimodpy.write_tsv(entries, path, *, delimiter)` | Write entries to a TSV (or CSV) file. |
+| `psimodpy.write_obo(entries, path, *, header_lines)` | Write entries back to PSI-MOD OBO format. |
 
 ### PsiModDatabase
 
@@ -86,15 +120,20 @@ print(entry.proforma_diff_formula)  # 'O3P'
 | `db.get_children(entry)` | Direct child entries. |
 | `db.get_related(entry, type)` | Follow relationship edges (derives_from, contains, etc.). |
 | `db.filter(...)` | Filter by obsolete/slim status. |
+| `db.write_tsv(path, *, delimiter)` | Write all entries to a TSV (or CSV) file. |
+| `db.write_obo(path)` | Write all entries back to OBO format. |
+| `db.header_lines` | Original header lines from the parsed OBO file. |
 
 ### PsiModEntry
 
-Each entry provides: `id`, `name`, `definition`, `synonyms`, `is_a`, `relationships`,
+Each entry provides: `id`, `name`, `definition`, `definition_ref`, `synonyms`, `is_a`, `relationships`,
 `origin`, `diff_mono`, `diff_avg`, `diff_formula`, `mass_mono`, `mass_avg`, `formula`,
 `term_spec`, `source`, `formal_charge`, `xref_unimod`, `xref_uniprot_ptm`, `xref_gnome`,
 `xref_remap`, `in_slim_subset`, `is_obsolete`.
 
 Computed properties: `dict_diff_formula`, `dict_formula`, `proforma_diff_formula`.
+
+Each `Synonym` has: `value`, `type` (`SynonymType`), `scope` (e.g. `"EXACT"`, `"RELATED"`).
 
 ### Data Types
 
