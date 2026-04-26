@@ -6,7 +6,7 @@ import csv
 from collections.abc import Iterable
 from pathlib import Path
 
-from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, Synonym, SynonymType
+from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, SynonymType
 
 _FIXED_PREFIX: tuple[str, ...] = (
     "id",
