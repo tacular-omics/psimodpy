@@ -13,7 +13,15 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 import psimodpy
 from psimodpy.server.dashboard import dashboard_entries
-from psimodpy.server.schemas import serialize_entry
+from psimodpy.server.models import (
+    EntryListResponse,
+    OriginResponse,
+    PsiModEntry,
+    PsiModSummary,
+    SearchResponse,
+    to_psimod_entry,
+    to_psimod_summary,
+)
 
 _db = psimodpy.load()
 _PACKAGE = "psimodpy"
@@ -56,42 +64,46 @@ def _build_mcp() -> FastMCP:
     )
 
     @mcp.tool()
-    def get_by_id(id: str) -> dict | None:
+    def get_by_id(id: str) -> PsiModEntry | None:
         """Look up a PSI-MOD entry by ID. Accepts ``"46"`` or ``"MOD:00046"``."""
         entry = _db.get_by_id(id)
-        return serialize_entry(entry) if entry else None
+        return to_psimod_entry(entry) if entry else None
 
     @mcp.tool()
-    def get_by_name(name: str) -> dict | None:
+    def get_by_name(name: str) -> PsiModEntry | None:
         """Look up a PSI-MOD entry by exact name (case-insensitive)."""
         entry = _db.get_by_name(name)
-        return serialize_entry(entry) if entry else None
+        return to_psimod_entry(entry) if entry else None
 
     @mcp.tool()
-    def search(query: str, limit: int = 25) -> list[dict]:
-        """Full-text search over names, definitions, and synonyms. Returns up to ``limit`` results."""
-        return [serialize_entry(e) for e in _db.search(query)[:limit]]
+    def search(query: str, limit: int = 25) -> list[PsiModSummary]:
+        """Full-text search over names, definitions, and synonyms.
+
+        Returns up to ``limit`` lightweight summaries.  Call ``get_by_id`` on
+        any returned ``id`` to fetch the full entry.
+        """
+        return [to_psimod_summary(e) for e in _db.search(query)[:limit]]
 
     @mcp.tool()
-    def get_parents(id: str) -> list[dict]:
+    def get_parents(id: str) -> list[PsiModEntry]:
         """Return direct ``is_a`` parents of the given entry."""
         entry = _db.get_by_id(id)
         if entry is None:
             return []
-        return [serialize_entry(p) for p in _db.get_parents(entry)]
+        return [to_psimod_entry(p) for p in _db.get_parents(entry)]
 
     @mcp.tool()
-    def get_children(id: str) -> list[dict]:
+    def get_children(id: str) -> list[PsiModEntry]:
         """Return entries with the given entry as a direct ``is_a`` parent."""
         entry = _db.get_by_id(id)
         if entry is None:
             return []
-        return [serialize_entry(c) for c in _db.get_children(entry)]
+        return [to_psimod_entry(c) for c in _db.get_children(entry)]
 
     @mcp.tool()
-    def get_by_origin(aa: str) -> list[dict]:
+    def get_by_origin(aa: str) -> list[PsiModEntry]:
         """Return entries whose origin includes the given single-letter amino acid code."""
-        return [serialize_entry(e) for e in _db.get_by_origin(aa)]
+        return [to_psimod_entry(e) for e in _db.get_by_origin(aa)]
 
     return mcp
 
@@ -148,72 +160,76 @@ def health() -> dict:
     }
 
 
-@app.get("/api/entries")
+@app.get("/api/entries", response_model=EntryListResponse)
 def list_entries(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     include_obsolete: bool = Query(False),
-) -> dict:
+) -> EntryListResponse:
     entries = [e for e in _db if include_obsolete or not e.is_obsolete]
     page = entries[offset : offset + limit]
-    return {
-        "total": len(entries),
-        "limit": limit,
-        "offset": offset,
-        "items": [serialize_entry(e) for e in page],
-    }
+    return EntryListResponse(
+        total=len(entries),
+        limit=limit,
+        offset=offset,
+        items=[to_psimod_entry(e) for e in page],
+    )
 
 
-@app.get("/api/entries/{id}")
-def get_entry(id: str) -> dict:
+@app.get("/api/entries/{id}", response_model=PsiModEntry)
+def get_entry(id: str) -> PsiModEntry:
     entry = _db.get_by_id(id)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"No entry for id={id!r}")
-    return serialize_entry(entry)
+    return to_psimod_entry(entry)
 
 
-@app.get("/api/entries/by-name/{name}")
-def get_entry_by_name(name: str) -> dict:
+@app.get("/api/entries/by-name/{name}", response_model=PsiModEntry)
+def get_entry_by_name(name: str) -> PsiModEntry:
     entry = _db.get_by_name(name)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"No entry for name={name!r}")
-    return serialize_entry(entry)
+    return to_psimod_entry(entry)
 
 
-@app.get("/api/entries/{id}/parents")
-def get_entry_parents(id: str) -> list[dict]:
+@app.get("/api/entries/{id}/parents", response_model=list[PsiModEntry])
+def get_entry_parents(id: str) -> list[PsiModEntry]:
     entry = _db.get_by_id(id)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"No entry for id={id!r}")
-    return [serialize_entry(p) for p in _db.get_parents(entry)]
+    return [to_psimod_entry(p) for p in _db.get_parents(entry)]
 
 
-@app.get("/api/entries/{id}/children")
-def get_entry_children(id: str) -> list[dict]:
+@app.get("/api/entries/{id}/children", response_model=list[PsiModEntry])
+def get_entry_children(id: str) -> list[PsiModEntry]:
     entry = _db.get_by_id(id)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"No entry for id={id!r}")
-    return [serialize_entry(c) for c in _db.get_children(entry)]
+    return [to_psimod_entry(c) for c in _db.get_children(entry)]
 
 
-@app.get("/api/by-origin/{aa}")
-def get_entries_by_origin(aa: str) -> dict:
+@app.get("/api/by-origin/{aa}", response_model=OriginResponse)
+def get_entries_by_origin(aa: str) -> OriginResponse:
     entries = _db.get_by_origin(aa)
-    return {"origin": aa, "count": len(entries), "items": [serialize_entry(e) for e in entries]}
+    return OriginResponse(
+        origin=aa,
+        count=len(entries),
+        items=[to_psimod_entry(e) for e in entries],
+    )
 
 
-@app.get("/api/search")
+@app.get("/api/search", response_model=SearchResponse)
 def search_entries(
     q: str = Query(..., min_length=1),
     limit: int = Query(50, ge=1, le=500),
-) -> dict:
+) -> SearchResponse:
     results = _db.search(q)
-    return {
-        "query": q,
-        "total": len(results),
-        "limit": limit,
-        "items": [serialize_entry(e) for e in results[:limit]],
-    }
+    return SearchResponse(
+        query=q,
+        total=len(results),
+        limit=limit,
+        items=[to_psimod_summary(e) for e in results[:limit]],
+    )
 
 
 # Mount MCP at the root; its inner app exposes /mcp.
