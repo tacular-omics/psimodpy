@@ -57,6 +57,11 @@ td{padding:.55rem .9rem;border-bottom:1px solid #f3f4f6;vertical-align:middle}
 .to0{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
 .tgr{background:#f9fafb;color:#6b7280;border-color:#e5e7eb}
 .trd{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+.term-link{display:inline-flex;align-items:baseline;gap:.35rem;text-decoration:none;cursor:pointer}
+.term-link:hover{text-decoration:none;background:#dbeafe;border-color:#93c5fd}
+.term-link .tid{font-family:ui-monospace,monospace;font-weight:600}
+.term-link .tnm{font-weight:500;white-space:normal}
+.term-list{display:flex;flex-wrap:wrap;gap:.3rem}
 .dg{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.65rem;margin-bottom:.5rem}
 .dl{font-size:.72rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem}
 .dv{font-size:.84rem;color:#1a202c;word-break:break-word}
@@ -143,6 +148,7 @@ td{padding:.55rem .9rem;border-bottom:1px solid #f3f4f6;vertical-align:middle}
 <script>
 'use strict';
 let ALL=[],filtered=[],sortCol='id',sortDir=1,page=0,perPage=50;
+const BY_ID=new Map(),CHILDREN=new Map();
 const SRC={natural:'tg0',artifact:'tgr',artifactual:'tgr',hypothetical:'to0',none:'tgr'};
 function fmtId(id){return'MOD:'+String(id).padStart(5,'0');}
 function fmtOrigin(o){
@@ -151,9 +157,28 @@ function fmtOrigin(o){
   if(o.type==='crosslink')return`<span class="tag tp0">XL:${o.sites.join('–')}</span>`;
   return x(String(o));
 }
+function termLink(id){
+  const ent=BY_ID.get(id);
+  const idStr=fmtId(id);
+  const nm=ent?ent.name:'';
+  return`<a class="tag tb0 term-link" href="?id=${id}" data-term-id="${id}">`
+    +`<span class="tid">${idStr}</span>`
+    +(nm?`<span class="tnm">${x(nm)}</span>`:'')
+    +`</a>`;
+}
 async function init(){
   const r=await fetch('data.json');
   ALL=await r.json();
+  BY_ID.clear();CHILDREN.clear();
+  for(const e of ALL)BY_ID.set(e.id,e);
+  for(const e of ALL){
+    for(const pid of(e.is_a||[])){
+      let arr=CHILDREN.get(pid);
+      if(!arr){arr=[];CHILDREN.set(pid,arr);}
+      arr.push(e.id);
+    }
+  }
+  for(const arr of CHILDREN.values())arr.sort((a,b)=>a-b);
   document.getElementById('ec').textContent=ALL.length+' entries';
   const origs=new Set,srcs=new Set;
   for(const e of ALL){
@@ -167,7 +192,7 @@ async function init(){
   fill('fsr',[...srcs].sort());
   update();
   const qid=new URLSearchParams(location.search).get('id');
-  if(qid){const e=ALL.find(e=>e.id===Number(qid));if(e)showDetail(e);}
+  if(qid){const e=BY_ID.get(Number(qid));if(e)showDetail(e);}
 }
 function fill(id,vals){const s=document.getElementById(id);vals.forEach(v=>{const o=document.createElement('option');o.value=o.textContent=v;s.appendChild(o);});}
 function update(){page=0;applyFilters();applySort();render();}
@@ -232,7 +257,17 @@ function showDetail(e){
   document.getElementById('dvp').style.display='block';
   document.getElementById('dvi').textContent=fmtId(e.id);
   document.getElementById('dvt').textContent=e.name;
-  document.getElementById('dvc').innerHTML=detail(e);
+  const dvc=document.getElementById('dvc');
+  dvc.innerHTML=detail(e);
+  dvc.querySelectorAll('a[data-term-id]').forEach(a=>{
+    a.addEventListener('click',ev=>{
+      if(ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.button===1)return;
+      ev.preventDefault();
+      const tid=Number(a.dataset.termId);
+      const ent=BY_ID.get(tid);
+      if(ent){window.scrollTo(0,0);openDetail(ent);}
+    });
+  });
   document.title=e.name+' — psimodpy';
 }
 function closeDetail(){
@@ -243,7 +278,10 @@ function closeDetail(){
 }
 function detail(e){
   const synRows=(e.synonyms||[]).map(s=>`<tr><td>${x(s.value)}</td><td class="mono" style="color:#6b7280;font-size:.75rem">${x(s.type)}</td></tr>`).join('');
-  const parents=(e.is_a||[]).map(id=>`<span class="tag tgr mono">${fmtId(id)}</span>`).join(' ')||'—';
+  const parentIds=e.is_a||[];
+  const parents=parentIds.length?`<div class="term-list">${parentIds.map(termLink).join('')}</div>`:'—';
+  const childIds=CHILDREN.get(e.id)||[];
+  const children=childIds.length?`<div class="term-list">${childIds.map(termLink).join('')}</div>`:'—';
   const rels=(e.relationships||[]).map(r=>`<div style="font-size:.82rem"><span style="color:#6b7280">${x(r.type)}</span> → <span class="mono">${fmtId(r.target_id)}</span></div>`).join('')||'—';
   const xrefs=[];
   if(e.xref_unimod)xrefs.push(`<div><span class="tag tb0">Unimod</span> ${x(e.xref_unimod)}</div>`);
@@ -269,7 +307,8 @@ ${statTags.length?`<div><div class="dl">Status</div><div class="dv" style="displ
 ${synRows?`<div style="margin-top:.75rem"><div class="dl">Synonyms (${e.synonyms.length})</div>
 <table class="st"><thead><tr><th>Synonym</th><th>Type</th></tr></thead><tbody>${synRows}</tbody></table></div>`:''}
 <div class="dg" style="margin-top:.75rem">
-<div><div class="dl">Parent Terms (is_a)</div><div class="dv" style="margin-top:.2rem">${parents}</div></div>
+<div><div class="dl">Parent Terms${parentIds.length?' ('+parentIds.length+')':''}</div><div class="dv" style="margin-top:.2rem">${parents}</div></div>
+<div><div class="dl">Direct Children${childIds.length?' ('+childIds.length+')':''}</div><div class="dv" style="margin-top:.2rem">${children}</div></div>
 ${rels!=='—'?`<div><div class="dl">Relationships</div><div class="dv" style="margin-top:.2rem">${rels}</div></div>`:''}
 ${xrefs.length?`<div><div class="dl">Cross-References</div><div class="dv" style="margin-top:.25rem;display:flex;flex-direction:column;gap:.2rem">${xrefs.join('')}</div></div>`:''}
 </div>`;
@@ -289,7 +328,7 @@ function x(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace
 document.getElementById('dvb').addEventListener('click',closeDetail);
 window.addEventListener('popstate',()=>{
   const qid=new URLSearchParams(location.search).get('id');
-  if(qid){const e=ALL.find(e=>e.id===Number(qid));if(e){showDetail(e);return;}}
+  if(qid){const e=BY_ID.get(Number(qid));if(e){showDetail(e);return;}}
   document.getElementById('dvp').style.display='none';
   document.getElementById('lvw').style.display='';
   document.title='PSI-MOD Browser — psimodpy';
