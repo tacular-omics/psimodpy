@@ -7,13 +7,17 @@
 
 Python library for parsing and querying the [PSI-MOD](https://github.com/HUPO-PSI/psi-mod-CV) protein modification ontology.
 
-- Zero dependencies
+- Zero core dependencies
 - Bundled PSI-MOD data (2,116 entries) — works offline out of the box
 - Typed, immutable data models (`py.typed` / PEP 561)
 - TSV/CSV export and round-trip OBO writer
+- Optional FastAPI / [Model Context Protocol](https://modelcontextprotocol.io) server (`pip install psimodpy[server]`)
 
 ## Online Viewer
 #### [Click Me!](https://tacular-omics.github.io/psimodpy/)
+
+The same database is also reachable as a hosted REST + MCP service — see
+[HTTP API and MCP Server](#http-api-and-mcp-server) below.
 
 ## Installation
 
@@ -92,6 +96,63 @@ db2 = psimodpy.parse_obo("out/psi-mod.obo")
 # Standalone function; pass original header lines for a faithful round-trip
 from psimodpy import write_obo
 write_obo(db, "out/psi-mod.obo", header_lines=db.header_lines)
+```
+
+## HTTP API and MCP Server
+
+The optional `[server]` extra ships a FastAPI app that exposes the same
+database over a JSON REST API *and* over the
+[Model Context Protocol](https://modelcontextprotocol.io) so language-model
+tools can query PSI-MOD directly.
+
+```bash
+pip install psimodpy[server]
+uvicorn psimodpy.server.app:app --reload
+```
+
+### REST endpoints
+
+| Method & path | Returns |
+|---------------|---------|
+| `GET /api/health` | Service metadata and entry count. |
+| `GET /api/entries?limit=&offset=&include_obsolete=` | Paginated full entries. |
+| `GET /api/entries/{id}` | One full entry by ID (`46` or `MOD:00046`). |
+| `GET /api/entries/by-name/{name}` | One full entry by exact name. |
+| `GET /api/entries/{id}/parents` | Direct `is_a` parents. |
+| `GET /api/entries/{id}/children` | Direct `is_a` children. |
+| `GET /api/by-origin/{aa}` | Entries with the given amino-acid origin. |
+| `GET /api/search?q=&limit=` | Search hits as lightweight summaries. |
+
+Full entry payloads include `references` parsed from `definition_ref` into
+`{type, accession, value}` objects and a typed `origin` object (either
+`{type: "amino_acid", code}` or `{type: "crosslink", sites}`). Search
+responses contain just `{id, accession, name, mass_mono, is_obsolete}` to
+keep token cost low; call `/api/entries/{id}` on any hit for the full
+record.
+
+### MCP server
+
+The same FastAPI app mounts an MCP endpoint at `POST /mcp` with these tools:
+
+| Tool | Purpose |
+|------|---------|
+| `get_by_id(id)` | Look up a single entry. |
+| `get_by_name(name)` | Exact name lookup. |
+| `search(query, limit=25)` | Full-text search returning summaries. |
+| `get_parents(id)` | Direct `is_a` parents of an entry. |
+| `get_children(id)` | Direct `is_a` children of an entry. |
+| `get_by_origin(aa)` | Entries with the given amino-acid origin. |
+
+Tool responses use MCP's structured-output mechanism: the server emits an
+`outputSchema` per tool in `tools/list` and returns both `structuredContent`
+(typed Pydantic instance) and `content` (text fallback) on `tools/call`, so
+LLM clients can parse the response without re-reading the JSON string.
+
+Configure your MCP-aware client to point at `http://localhost:8000/mcp`
+(or wherever you deploy the app). Example with the Anthropic CLI:
+
+```bash
+claude mcp add psi-mod http://localhost:8000/mcp --transport http
 ```
 
 ## API Overview
