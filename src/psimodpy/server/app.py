@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
+from typing import cast
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
@@ -12,6 +13,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 import psimodpy
+from psimodpy.database import MassType
 from psimodpy.server.dashboard import dashboard_entries
 from psimodpy.server.models import (
     EntryListResponse,
@@ -27,13 +29,11 @@ _db = psimodpy.load()
 _PACKAGE = "psimodpy"
 _VERSION = _pkg_version(_PACKAGE)
 
+_VALID_MASS_TYPES = {"diff_mono", "diff_avg", "mass_mono", "mass_avg"}
 
-# Render dashboard payload once at import time.
 _DATA_JSON = json.dumps(dashboard_entries(), separators=(",", ":")).encode()
 
 
-# Locate the static dashboard. On Vercel the function bundle includes ``docs/``
-# (see vercel.json includeFiles); locally it lives at the repo root.
 def _load_dashboard_html() -> str | None:
     for candidate in (
         Path.cwd() / "docs" / "index.html",
@@ -50,8 +50,15 @@ def _load_dashboard_html() -> str | None:
 _DASHBOARD_HTML = _load_dashboard_html()
 
 
+def _split_residues(residues: str | None) -> list[str] | None:
+    if residues is None:
+        return None
+    parts = [r.strip() for r in residues.split(",") if r.strip()]
+    return parts or None
+
+
 # ---------------------------------------------------------------------------
-# MCP server (mounted at /, exposes its own /mcp route)
+# MCP server
 # ---------------------------------------------------------------------------
 
 
@@ -77,12 +84,45 @@ def _build_mcp() -> FastMCP:
 
     @mcp.tool()
     def search(query: str, limit: int = 25) -> list[PsiModSummary]:
-        """Full-text search over names, definitions, and synonyms.
-
-        Returns up to ``limit`` lightweight summaries.  Call ``get_by_id`` on
-        any returned ``id`` to fetch the full entry.
-        """
+        """Full-text search over names, definitions, and synonyms."""
         return [to_psimod_summary(e) for e in _db.search(query)[:limit]]
+
+    @mcp.tool()
+    def find(
+        text: str | None = None,
+        mass_min: float | None = None,
+        mass_max: float | None = None,
+        mass_type: str = "diff_mono",
+        residues: list[str] | None = None,
+        term_spec: str | None = None,
+        source: str | None = None,
+        in_slim_subset: bool | None = None,
+        include_obsolete: bool = False,
+        limit: int = 25,
+    ) -> list[PsiModSummary]:
+        """Fine-grained AND-combined search.
+
+        Filters: ``text`` (substring over name/def/synonyms), ``mass_min``/
+        ``mass_max`` on the column named by ``mass_type`` (``diff_mono``,
+        ``diff_avg``, ``mass_mono``, or ``mass_avg``), ``residues`` against
+        the entry origin, ``term_spec`` (``"none"|"N-term"|"C-term"``),
+        ``source`` (``"natural"|"artifact"|"hypothetical"``), and
+        ``in_slim_subset``.  Returns up to ``limit`` summaries.
+        """
+        mt = mass_type if mass_type in _VALID_MASS_TYPES else "diff_mono"
+        results = _db.find(
+            text=text,
+            mass_min=mass_min,
+            mass_max=mass_max,
+            mass_type=cast(MassType, mt),
+            residues=residues,
+            term_spec=term_spec,
+            source=source,
+            in_slim_subset=in_slim_subset,
+            include_obsolete=include_obsolete,
+            limit=limit,
+        )
+        return [to_psimod_summary(e) for e in results]
 
     @mcp.tool()
     def get_parents(id: str) -> list[PsiModEntry]:
@@ -108,7 +148,6 @@ def _build_mcp() -> FastMCP:
     return mcp
 
 
-# Module-level instance for inspection / re-export.
 mcp = _build_mcp()
 
 
@@ -117,8 +156,6 @@ mcp = _build_mcp()
 # ---------------------------------------------------------------------------
 
 
-# Vercel doesn't fire ASGI lifespan events, and StreamableHTTPSessionManager.run()
-# can only be called once per instance, so we build a fresh FastMCP per request.
 class _MCPWrapper:
     async def __call__(self, scope, receive, send) -> None:
         m = _build_mcp()
@@ -232,5 +269,32 @@ def search_entries(
     )
 
 
-# Mount MCP at the root; its inner app exposes /mcp.
+@app.get("/api/find", response_model=list[PsiModSummary])
+def find_entries(
+    text: str | None = Query(None),
+    mass_min: float | None = Query(None),
+    mass_max: float | None = Query(None),
+    mass_type: str = Query("diff_mono", pattern="^(diff_mono|diff_avg|mass_mono|mass_avg)$"),
+    residues: str | None = Query(None, description="Comma-separated residue codes"),
+    term_spec: str | None = Query(None),
+    source: str | None = Query(None),
+    in_slim_subset: bool | None = Query(None),
+    include_obsolete: bool = Query(False),
+    limit: int = Query(50, ge=1, le=500),
+) -> list[PsiModSummary]:
+    results = _db.find(
+        text=text,
+        mass_min=mass_min,
+        mass_max=mass_max,
+        mass_type=cast(MassType, mass_type),
+        residues=_split_residues(residues),
+        term_spec=term_spec,
+        source=source,
+        in_slim_subset=in_slim_subset,
+        include_obsolete=include_obsolete,
+        limit=limit,
+    )
+    return [to_psimod_summary(e) for e in results]
+
+
 app.mount("/", _MCPWrapper())

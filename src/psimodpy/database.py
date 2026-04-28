@@ -3,10 +3,20 @@
 from __future__ import annotations
 
 import importlib.resources
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from pathlib import Path
+from typing import Literal
 
-from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, RelationshipType
+from psimodpy.models import (
+    AminoAcid,
+    Crosslink,
+    PsiModEntry,
+    RelationshipType,
+    Source,
+    TermSpec,
+)
+
+MassType = Literal["diff_mono", "diff_avg", "mass_mono", "mass_avg"]
 
 
 class PsiModDatabase:
@@ -50,7 +60,6 @@ class PsiModDatabase:
         Accepts an integer (34) or a string in MOD:NNNNN format ("MOD:00034").
         """
         if isinstance(id, str):
-            # Accept "MOD:00034" or plain "34"
             if id.upper().startswith("MOD:"):
                 id = int(id[4:])
             else:
@@ -97,12 +106,89 @@ class PsiModDatabase:
         return results
 
     def get_by_origin(self, aa: str) -> list[PsiModEntry]:
-        """Return all entries whose origin includes the given amino acid code.
-
-        Crosslink entries with origin "C, C" will appear in get_by_origin("C").
-        Entries with origin "X" (any) appear in get_by_origin("X").
-        """
+        """Return all entries whose origin includes the given amino acid code."""
         return list(self._by_origin.get(aa, []))
+
+    def find(
+        self,
+        *,
+        text: str | None = None,
+        mass_min: float | None = None,
+        mass_max: float | None = None,
+        mass_type: MassType = "diff_mono",
+        residues: Sequence[str] | None = None,
+        term_spec: str | None = None,
+        source: str | None = None,
+        in_slim_subset: bool | None = None,
+        include_obsolete: bool = False,
+        limit: int | None = None,
+    ) -> list[PsiModEntry]:
+        """Fine-grained AND-combined search across multiple fields.
+
+        All filters are optional; ``None`` values are skipped.  ``residues`` is
+        matched (case-sensitive single letters) against the entry's origin.
+        For :class:`Crosslink` origins, an entry matches if any site is in the
+        residue set.  ``mass_type`` selects which mass field to range-filter on.
+        ``term_spec`` and ``source`` accept the OBO string values
+        (e.g. ``"N-term"``, ``"natural"``).
+        """
+        text_q = text.lower() if text is not None else None
+        residue_set = {r.upper() for r in residues} if residues else None
+
+        ts_value: TermSpec | None = None
+        if term_spec is not None:
+            try:
+                ts_value = TermSpec(term_spec)
+            except ValueError:
+                return []
+
+        src_value: Source | None = None
+        if source is not None:
+            try:
+                src_value = Source(source)
+            except ValueError:
+                return []
+
+        results: list[PsiModEntry] = []
+        for entry in self._by_id.values():
+            if not include_obsolete and entry.is_obsolete:
+                continue
+
+            if text_q is not None and not (
+                text_q in entry.name.lower()
+                or text_q in entry.definition.lower()
+                or any(text_q in s.value.lower() for s in entry.synonyms)
+            ):
+                continue
+
+            if mass_min is not None or mass_max is not None:
+                mass = getattr(entry, mass_type, None)
+                if mass is None:
+                    continue
+                if mass_min is not None and mass < mass_min:
+                    continue
+                if mass_max is not None and mass > mass_max:
+                    continue
+
+            if residue_set is not None:
+                sites = _origin_sites(entry)
+                if not sites or sites.isdisjoint(residue_set):
+                    continue
+
+            if ts_value is not None and entry.term_spec != ts_value:
+                continue
+
+            if src_value is not None and entry.source != src_value:
+                continue
+
+            if in_slim_subset is not None and entry.in_slim_subset != in_slim_subset:
+                continue
+
+            results.append(entry)
+            if limit is not None and len(results) >= limit:
+                break
+
+        return results
 
     # ------------------------------------------------------------------
     # Graph traversal
@@ -132,12 +218,7 @@ class PsiModDatabase:
         include_obsolete: bool = False,
         slim_only: bool = False,
     ) -> list[PsiModEntry]:
-        """Return a filtered list of entries.
-
-        Args:
-            include_obsolete: If False (default), exclude obsolete entries.
-            slim_only: If True, return only PSI-MOD-slim subset entries.
-        """
+        """Return a filtered list of entries."""
         entries = list(self._by_id.values())
         if not include_obsolete:
             entries = [e for e in entries if not e.is_obsolete]
@@ -158,22 +239,20 @@ class PsiModDatabase:
         return write_obo(self._by_id.values(), path, header_lines=self.header_lines)
 
 
+def _origin_sites(entry: PsiModEntry) -> set[str]:
+    if entry.origin is None:
+        return set()
+    if isinstance(entry.origin, AminoAcid):
+        return {str(entry.origin)}
+    return set(entry.origin.sites)
+
+
 def load(*, include_obsolete: bool = True) -> PsiModDatabase:
-    """Load the bundled PSI-MOD database.
-
-    Args:
-        include_obsolete: If True (default), include obsolete entries. Obsolete
-            entries carry xref_remap redirects useful for cross-reference resolution.
-            Pass False to exclude them.
-
-    Returns:
-        A PsiModDatabase populated from the bundled PSI-MOD.obo file.
-    """
+    """Load the bundled PSI-MOD database."""
     from psimodpy.parser import parse_obo
 
     pkg_data = importlib.resources.files("psimodpy.data")
     obo_path = pkg_data.joinpath("PSI-MOD.obo")
-    # importlib.resources returns a Traversable; write to a temp path if needed
     with importlib.resources.as_file(obo_path) as path:
         db = parse_obo(Path(path))
 
