@@ -36,7 +36,7 @@ server = [
 Homepage = "https://github.com/tacular-omics/psimodpy"
 Repository = "https://github.com/tacular-omics/psimodpy"
 Issues = "https://github.com/tacular-omics/psimodpy/issues"
-Changelog = "https://github.com/tacular-omics/psimodpy/blob/main/HISTORY.md"
+Changelog = "https://github.com/tacular-omics/psimodpy/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]
