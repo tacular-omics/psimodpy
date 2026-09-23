@@ -2,7 +2,6 @@
 
 import csv
 
-import psimodpy
 from psimodpy import PsiModDatabase, write_tsv
 from psimodpy._tabular import _FIXED_PREFIX, _FIXED_SUFFIX
 

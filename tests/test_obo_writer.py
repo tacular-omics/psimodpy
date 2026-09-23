@@ -2,7 +2,6 @@
 
 import pytest
 
-import psimodpy
 from psimodpy import PsiModDatabase, parse_obo, write_obo
 
 
@@ -59,6 +58,7 @@ def test_round_trip_synonyms_with_scope(db: PsiModDatabase, tmp_path) -> None:
     for s1, s2 in zip(
         sorted(e1.synonyms, key=lambda s: s.value),
         sorted(e2.synonyms, key=lambda s: s.value),
+        strict=True,
     ):
         assert s1.value == s2.value
         assert s1.type == s2.type
