@@ -2,7 +2,6 @@
 
 import pytest
 
-import psimodpy
 from psimodpy import PsiModDatabase, parse_obo, write_obo
 
 
@@ -59,6 +58,7 @@ def test_round_trip_synonyms_with_scope(db: PsiModDatabase, tmp_path) -> None:
     for s1, s2 in zip(
         sorted(e1.synonyms, key=lambda s: s.value),
         sorted(e2.synonyms, key=lambda s: s.value),
+        strict=True,
     ):
         assert s1.value == s2.value
         assert s1.type == s2.type
@@ -84,9 +84,7 @@ def test_round_trip_relationships(db: PsiModDatabase, tmp_path) -> None:
     write_obo(db, out, header_lines=db.header_lines)
     db2 = parse_obo(out)
     e1, e2 = db[125], db2[125]
-    assert {(r.type, r.target_id) for r in e1.relationships} == {
-        (r.type, r.target_id) for r in e2.relationships
-    }
+    assert {(r.type, r.target_id) for r in e1.relationships} == {(r.type, r.target_id) for r in e2.relationships}
 
 
 def test_round_trip_slim_subset(db: PsiModDatabase, tmp_path) -> None:

@@ -35,3 +35,5 @@ __all__ = [
     "write_obo",
     "write_tsv",
 ]
+
+__version__ = "0.1.2"

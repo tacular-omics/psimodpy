@@ -37,3 +37,17 @@ build:
     uv build
     @echo "--- Wheel contents (*.obo files) ---"
     @python3 -c "import zipfile, glob; [print('\n'.join(f for f in zipfile.ZipFile(w).namelist() if f.endswith('.obo'))) for w in glob.glob('dist/*.whl')]"
+
+# --- release (standard tacular-omics recipes; canonical copy in the workspace templates/) ---
+
+# Set the version everywhere and date the [Unreleased] changelog section
+set-version version:
+    python scripts/release_version.py sync --set {{version}}
+
+# Copy __version__ to CITATION.cff / .zenodo.json after editing it by hand
+sync-version:
+    python scripts/release_version.py sync
+
+# Fail if version metadata disagrees
+check-version:
+    python scripts/release_version.py check

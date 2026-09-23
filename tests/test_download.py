@@ -48,8 +48,9 @@ def test_creates_parent_dirs(tmp_path):
 
 
 def test_default_dest_uses_cache():
-    with patch("psimodpy._download.urllib.request.urlopen") as mock_urlopen, patch(
-        "pathlib.Path.exists", return_value=True
+    with (
+        patch("psimodpy._download.urllib.request.urlopen") as mock_urlopen,
+        patch("pathlib.Path.exists", return_value=True),
     ):
         result = download_obo()
 
