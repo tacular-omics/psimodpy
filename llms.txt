@@ -1,0 +1,38 @@
+# psimodpy
+
+> Typed Python library for the HUPO-PSI PSI-MOD protein modification ontology.
+> The full ontology (2116 terms) is bundled, so it works offline with zero runtime
+> dependencies. Look up modifications by ID, MOD accession, name, free-text search,
+> amino-acid origin, or is_a parents/children; export to TSV/CSV or OBO.
+
+`import psimodpy; db = psimodpy.load(); db["MOD:00046"].name` returns
+`"O-phospho-L-serine"`. Entries are frozen dataclasses with mass, formula
+(also as a Hill string via `proforma_diff_formula`), origin residue, synonyms and
+cross-references to Unimod, UniProt PTM and GNOme.
+
+An optional `server` extra (`pip install "psimodpy[server]"`) adds a FastAPI REST
+API and an MCP endpoint (`/mcp`, streamable HTTP) with tools `get_by_id`,
+`get_by_name`, `search`, `get_parents`, `get_children`, `get_by_origin`. A hosted
+instance runs at https://psimod.tacular.dev. Part of the tacular-omics family,
+alongside unimodpy and uniprotptmpy.
+
+## Docs
+
+- [llms-full.txt](https://raw.githubusercontent.com/tacular-omics/psimodpy/main/llms-full.txt): complete usage guide: every public function and class, REST routes, MCP tools, examples, gotchas
+- [README](https://github.com/tacular-omics/psimodpy/blob/main/README.md): install, quick example, API summary
+- [CHANGELOG](https://github.com/tacular-omics/psimodpy/blob/main/CHANGELOG.md): release history
+- [CLAUDE.md](https://github.com/tacular-omics/psimodpy/blob/main/CLAUDE.md): guide for coding agents working on the repo itself
+
+## API
+
+- [Hosted REST + MCP server](https://psimod.tacular.dev): dashboard at `/`, REST under `/api/...`, MCP at `/mcp`
+- [OpenAPI docs](https://psimod.tacular.dev/docs): interactive REST reference
+- [Online browser](https://tacular-omics.github.io/psimodpy/): search and inspect every term (GitHub Pages)
+- [Package source](https://github.com/tacular-omics/psimodpy/tree/main/src/psimodpy): `database.py`, `models.py`, `server/app.py`
+
+## Optional
+
+- [PyPI](https://pypi.org/project/psimodpy/): releases
+- [PSI-MOD upstream](https://github.com/HUPO-PSI/psi-mod-CV): the ontology's source repository
+- [unimodpy](https://github.com/tacular-omics/unimodpy): sister package for UNIMOD
+- [uniprotptmpy](https://github.com/tacular-omics/uniprotptmpy): sister package for the UniProt PTM vocabulary

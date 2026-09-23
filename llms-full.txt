@@ -1,0 +1,433 @@
+# psimodpy
+
+> Typed Python library for the HUPO-PSI PSI-MOD protein modification ontology.
+> The full ontology (2116 terms) is bundled, so it works offline with zero runtime
+> dependencies. Optional FastAPI REST + MCP server, hosted at https://psimod.tacular.dev.
+
+This file is a self-contained usage guide for people and AI tools that *use*
+psimodpy. Contributors to the repository should read CLAUDE.md instead.
+
+- Source: https://github.com/tacular-omics/psimodpy
+- PyPI: https://pypi.org/project/psimodpy/
+- Browser: https://tacular-omics.github.io/psimodpy/
+- Upstream ontology: https://github.com/HUPO-PSI/psi-mod-CV
+- License: MIT (package). The ontology data is from HUPO-PSI.
+
+Version documented here: 0.2.1. Python >= 3.12.
+
+
+## 1. Install
+
+```bash
+pip install psimodpy                 # core: no third-party dependencies
+pip install "psimodpy[server]"       # adds fastapi, uvicorn, mcp (>=2.1.1,<3)
+uv add psimodpy                      # with uv
+```
+
+
+## 2. Quick start
+
+```python
+import psimodpy
+
+db = psimodpy.load()                 # bundled PSI-MOD, parsed in well under a second
+len(db)                              # 2116 (obsolete terms included)
+
+entry = db[46]                       # by int, "46" or "MOD:00046"
+entry.name                           # 'O-phospho-L-serine'
+entry.origin                         # <AminoAcid.SER: 'S'>
+entry.diff_mono                      # 79.966331
+entry.diff_avg                       # 79.98
+entry.diff_formula                   # 'C 0 H 1 N 0 O 3 P 1'   (PSI-MOD format)
+entry.dict_diff_formula              # {'C': 0, 'H': 1, 'N': 0, 'O': 3, 'P': 1}
+entry.proforma_diff_formula          # 'HO3P'                  (Hill notation)
+entry.mass_mono                      # 166.998359              (whole residue)
+entry.formula                        # 'C 3 H 6 N 1 O 5 P 1'
+entry.xref_unimod                    # 'Unimod:21'
+entry.xref_uniprot_ptm               # 'PTM-0253'
+entry.is_a                           # (771, 916, 1455)        parent ids
+
+db.get_by_name("o-phospho-l-serine") is entry   # True, case-insensitive exact match
+len(db.search("phospho"))                       # 99  (name, definition, synonyms)
+len(db.get_by_origin("S"))                      # 154 (every mod on serine)
+[p.name for p in db.get_parents(entry)]
+# ['residues isobaric at 166.98-167.00 Da', 'modified L-serine residue',
+#  'O-phosphorylated residue']
+```
+
+
+## 3. Loading
+
+### `psimodpy.load(*, include_obsolete: bool = True) -> PsiModDatabase`
+
+Load the bundled `PSI-MOD.obo` shipped inside the wheel. Obsolete terms are
+included by default (2116 terms); `include_obsolete=False` gives 1996. Obsolete
+terms are useful because they carry `xref_remap`, the id of the replacement term.
+
+### `psimodpy.load_from(path: Path | str) -> PsiModDatabase`
+
+Load a database from any PSI-MOD OBO file on disk (for example a newer release
+fetched with `download_obo`). Same as `parse_obo`.
+
+### `psimodpy.parse_obo(path: Path | str) -> PsiModDatabase`
+
+Parse an OBO file. Keeps the file's header lines on `db.header_lines` so
+`write_obo` can round-trip them.
+
+### `psimodpy.download_obo(dest: Path | str | None = None, *, force: bool = False) -> Path`
+
+Download the latest `PSI-MOD.obo` from
+`https://raw.githubusercontent.com/HUPO-PSI/psi-mod-CV/master/PSI-MOD.obo`.
+Default destination is `~/.cache/psimodpy/PSI-MOD.obo`. If the file already
+exists it is returned without downloading unless `force=True`. This does **not**
+change what `load()` returns; use the returned path with `load_from`:
+
+```python
+path = psimodpy.download_obo()
+latest = psimodpy.load_from(path)
+```
+
+
+## 4. `PsiModDatabase`
+
+In-memory index over `PsiModEntry` objects.
+
+| member | purpose |
+|---|---|
+| `PsiModDatabase(entries, *, header_lines=())` | build from any iterable of entries |
+| `db[id]` | entry by id; raises `KeyError` if absent |
+| `get_by_id(id: int \| str) -> PsiModEntry \| None` | accepts `46`, `"46"`, `"MOD:00046"` (prefix case-insensitive) |
+| `get_by_name(name: str) -> PsiModEntry \| None` | exact name, case-insensitive |
+| `search(query: str) -> list[PsiModEntry]` | case-insensitive substring in name, definition or any synonym; `""` returns all |
+| `get_by_origin(aa: str) -> list[PsiModEntry]` | entries whose origin includes this one-letter code (case-sensitive) |
+| `get_parents(entry) -> list[PsiModEntry]` | direct `is_a` parents |
+| `get_children(entry) -> list[PsiModEntry]` | entries with `entry` as a direct `is_a` parent |
+| `get_related(entry, rel_type: RelationshipType) -> list[PsiModEntry]` | targets of `derives_from` / `has_functional_parent` / `contains` / `part_of` links |
+| `filter(*, include_obsolete=False, slim_only=False) -> list[PsiModEntry]` | drop obsolete (default) and optionally keep only the PSI-MOD-slim subset |
+| `write_tsv(path, *, delimiter="\t") -> Path` | export every entry; `delimiter=","` for CSV |
+| `write_obo(path) -> Path` | export as PSI-MOD OBO, reusing `header_lines` |
+| `header_lines: tuple[str, ...]` | OBO header lines before the first stanza |
+| `len(db)`, `for e in db` | count and iterate (insertion order = file order) |
+
+Notes:
+
+- `get_parents`, `get_children` and `get_related` take an **entry**, not an id:
+  `db.get_children(db[696])`.
+- `get_by_id("foo")` (a non-numeric string without `MOD:`) raises `ValueError`;
+  an unknown numeric id returns `None`.
+- `filter()` defaults to `include_obsolete=False`, the opposite of `load()`.
+
+```python
+db.filter()                                   # 1996 non-obsolete
+db.filter(slim_only=True)                     # 811 PSI-MOD-slim, non-obsolete
+db.filter(include_obsolete=True)              # 2116
+
+from psimodpy import RelationshipType
+hyp = db[125]                                 # hypusine
+[e.name for e in db.get_related(hyp, RelationshipType.DERIVES_FROM)]
+# ['L-deoxyhypusine']
+
+root = db[0]                                  # 'protein modification'
+[c.name for c in db.get_children(root)]
+# ['uncategorized protein modification',
+#  'protein modification categorized by isobaric sets',
+#  'protein modification categorized by chemical process',
+#  'protein modification categorized by amino acid modified']
+```
+
+
+## 5. Models
+
+All models are `@dataclass(frozen=True, slots=True)` (immutable, hashable when
+their fields are) or `StrEnum`s (compare equal to their string value).
+
+### `PsiModEntry`
+
+| field | type | meaning |
+|---|---|---|
+| `id` | `int` | numeric part of `MOD:NNNNN` (format with `f"MOD:{id:05d}"`) |
+| `name` | `str` | term name |
+| `definition` | `str` | definition text, citation block stripped |
+| `definition_ref` | `str` | raw citation block, e.g. `"[PubMed:12923550, RESID:AA0037, Unimod:21#S]"`; default `"[]"` |
+| `synonyms` | `tuple[Synonym, ...]` | typed synonyms |
+| `is_a` | `tuple[int, ...]` | parent ids (PSI-MOD allows several) |
+| `relationships` | `tuple[Relationship, ...]` | non-`is_a` links |
+| `comment` | `str \| None` | OBO comment |
+| `diff_mono`, `diff_avg` | `float \| None` | monoisotopic / average mass difference (xref DiffMono, DiffAvg) |
+| `diff_formula` | `str \| None` | difference formula in PSI-MOD format, e.g. `"C 0 H 1 N 0 O 3 P 1"` |
+| `mass_mono`, `mass_avg` | `float \| None` | full residue masses (MassMono, MassAvg) |
+| `formula` | `str \| None` | full residue formula in PSI-MOD format |
+| `origin` | `AminoAcid \| Crosslink \| None` | residue(s) the modification sits on |
+| `term_spec` | `TermSpec \| None` | positional specificity |
+| `source` | `Source \| None` | natural / artifact / hypothetical |
+| `formal_charge` | `int \| None` | signed net charge (`"1+"` -> `1`, `"2-"` -> `-2`) |
+| `xref_unimod` | `str \| None` | e.g. `"Unimod:21"` |
+| `xref_uniprot_ptm` | `str \| None` | e.g. `"PTM-0253"` |
+| `xref_gnome` | `str \| None` | e.g. `"GNO:G29068FM"` |
+| `xref_remap` | `int \| None` | replacement id for an obsolete term |
+| `in_slim_subset` | `bool` | member of PSI-MOD-slim |
+| `is_obsolete` | `bool` | marked obsolete |
+
+Computed properties:
+
+- `dict_diff_formula -> dict[str, int] | None`: `diff_formula` parsed; zero and
+  negative counts kept; isotopes keyed like `"(13)C"`.
+- `dict_formula -> dict[str, int] | None`: same for `formula`.
+- `proforma_diff_formula -> str | None`: `dict_diff_formula` in Hill notation
+  (C, then H, then alphabetical; zero counts dropped; count 1 omitted; negatives
+  written `H-2`). Example: L-cystine cross-link (`MOD:00034`) gives `"H-2"`.
+
+### `Synonym`
+
+`Synonym(value: str, type: SynonymType, scope: str = "EXACT")`.
+
+### `Relationship`
+
+`Relationship(type: RelationshipType, target_id: int)`.
+
+### `Crosslink`
+
+`Crosslink(sites: tuple[str, ...])`: origin of a multi-residue modification or one
+that references another MOD term. Each site is a one-letter code or a
+`"MOD:NNNNN"` string. `db[34].origin == Crosslink(sites=("C", "C"))` (L-cystine).
+
+### Enums
+
+- `AminoAcid`: `A R N D C Q E G H I L K M F P S T W Y V`, plus `U` (selenocysteine),
+  `O` (pyrrolysine), `X` (any residue). Member names are three-letter codes
+  (`AminoAcid.SER == "S"`).
+- `SynonymType`: `DeltaMass-label`, `OMSSA-label`, `PSI-MOD-label`,
+  `PSI-MOD-alternate`, `PSI-MS-label`, `RESID-name`, `RESID-alternate`,
+  `RESID-systematic`, `RESID-misnomer`, `Unimod-description`, `Unimod-alternate`,
+  `Unimod-interim`, `UniProt-feature`.
+- `RelationshipType`: `derives_from`, `has_functional_parent`, `contains`, `part_of`.
+- `TermSpec`: `none`, `N-term`, `C-term`.
+- `Source`: `natural`, `artifact`, `artifactual` (variant spelling used by four
+  entries), `hypothetical`, `none`.
+
+Note that "no value" in the OBO (`none`) maps to `TermSpec.NONE` / `Source.NONE`
+for those two fields, but to Python `None` for masses, formulas and origin.
+
+
+## 6. Export
+
+### `psimodpy.write_tsv(entries, path, *, delimiter="\t") -> Path`
+
+Write any iterable of entries (also `db.write_tsv(path)`). Parent directories
+are created. Columns, in order:
+
+```
+id name definition comment diff_mono diff_avg diff_formula mass_mono mass_avg
+formula origin term_spec source formal_charge xref_unimod xref_uniprot_ptm
+xref_gnome xref_remap in_slim_subset is_obsolete
+synonym_<type> ...   (one per SynonymType present, sorted, e.g. synonym_psi_mod_label)
+is_a relationships
+```
+
+- `id`, `xref_remap`, `is_a` are written as `MOD:NNNNN`; `is_a` and
+  `relationships` are joined with `"; "` (`derives_from:MOD:01880`).
+- Booleans are `1`/`0`; `None` is an empty cell.
+- Only the **first** synonym of each type is written, so TSV is lossy for
+  synonyms. Use `write_obo` for a lossless export.
+
+### `psimodpy.write_obo(entries, path, *, header_lines=()) -> Path`
+
+Write PSI-MOD OBO. With no `header_lines` a minimal header (format-version,
+ontology, subset and synonym type definitions) is written. `db.write_obo(path)`
+passes the parsed header. The output re-parses to equal entries:
+
+```python
+db.write_obo("out/psi-mod.obo")
+db2 = psimodpy.parse_obo("out/psi-mod.obo")
+assert len(db2) == len(db) and db2[46] == db[46]
+```
+
+
+## 7. Worked examples
+
+Every modification of cysteine that is in the slim subset:
+
+```python
+cys = [e for e in db.get_by_origin("C") if e.in_slim_subset and not e.is_obsolete]
+```
+
+Find terms by monoisotopic mass shift (there is no built-in mass search):
+
+```python
+def by_mass(db, mass, tol=0.01):
+    return [e for e in db if e.diff_mono is not None and abs(e.diff_mono - mass) <= tol]
+
+[e.name for e in by_mass(db, 79.9663)][:3]
+```
+
+Map PSI-MOD to Unimod accession numbers:
+
+```python
+psimod_to_unimod = {
+    f"MOD:{e.id:05d}": e.xref_unimod for e in db if e.xref_unimod and not e.is_obsolete
+}
+```
+
+Resolve an obsolete id to its replacement:
+
+```python
+def resolve(db, mod_id):
+    e = db.get_by_id(mod_id)
+    while e is not None and e.is_obsolete and e.xref_remap is not None:
+        e = db.get_by_id(e.xref_remap)
+    return e
+```
+
+Walk all ancestors of a term:
+
+```python
+def ancestors(db, entry):
+    seen, stack = {}, list(db.get_parents(entry))
+    while stack:
+        p = stack.pop()
+        if p.id not in seen:
+            seen[p.id] = p
+            stack.extend(db.get_parents(p))
+    return list(seen.values())
+```
+
+N-terminal modifications:
+
+```python
+from psimodpy import TermSpec
+nterm = [e for e in db if e.term_spec == TermSpec.N_TERM]
+```
+
+
+## 8. REST API (`server` extra)
+
+Run locally:
+
+```bash
+pip install "psimodpy[server]"
+uvicorn psimodpy.server.app:app --reload        # http://127.0.0.1:8000
+```
+
+Hosted: https://psimod.tacular.dev (Vercel). Interactive docs at `/docs`,
+schema at `/openapi.json`. The server loads the bundled database with obsolete
+terms included.
+
+| route | description |
+|---|---|
+| `GET /` | HTML browser dashboard |
+| `GET /data.json` | JSON payload used by the dashboard (cached 1 h) |
+| `GET /api/health` | `{"ok": true, "package": "psimodpy", "version": ..., "count": 2116}` |
+| `GET /api/entries` | paged list. Query: `limit` (1-500, default 50), `offset` (default 0), `include_obsolete` (default **false**). Returns `{total, limit, offset, items: [Entry]}` |
+| `GET /api/entries/{id}` | one Entry; `id` is `46` or `MOD:00046`. 404 if not found |
+| `GET /api/entries/by-name/{name}` | one Entry by exact, case-insensitive name. 404 if not found |
+| `GET /api/entries/{id}/parents` | `[Entry]`, direct `is_a` parents. 404 if id unknown |
+| `GET /api/entries/{id}/children` | `[Entry]`, direct `is_a` children. 404 if id unknown |
+| `GET /api/by-origin/{aa}` | `{origin, count, items: [Entry]}`; `aa` is an uppercase one-letter code |
+| `GET /api/search?q=...&limit=50` | `{query, total, limit, items: [Summary]}`; `q` required (422 without it), `limit` 1-500 |
+| `POST /mcp` | MCP endpoint, see section 9 |
+
+Entry JSON (wire model `psimodpy.server.models.PsiModEntry`) has every dataclass
+field plus:
+
+- `accession`: `"MOD:00046"`.
+- `references`: `definition_ref` split into `[{type, accession, value}]`, e.g.
+  `{"type": "PubMed", "accession": "12923550", "value": null}`; `URL:`/`URI:`
+  tokens go into `value`, tokens without a colon become `{"type": "Misc", "value": ...}`.
+- `dict_diff_formula`, `dict_formula`, `proforma_diff_formula`.
+- `origin`: `{"type": "amino_acid", "code": "S"}` or
+  `{"type": "crosslink", "sites": ["C", "C"]}` or `null`.
+- enums as plain strings.
+
+It omits `definition_ref` (replaced by `references`).
+
+Summary JSON (`PsiModSummary`): `{id, accession, name, mass_mono, is_obsolete}`.
+
+```bash
+curl https://psimod.tacular.dev/api/entries/MOD:00046
+curl "https://psimod.tacular.dev/api/search?q=phospho&limit=5"
+curl https://psimod.tacular.dev/api/by-origin/K
+```
+
+
+## 9. MCP server (`server` extra)
+
+The MCP server is part of the same FastAPI app and speaks **streamable HTTP** at
+`/mcp` (stateless; a new `MCPServer` is built per request). There is no stdio
+entry point and no console script; start it with uvicorn or use the hosted one.
+
+Connect a client:
+
+```bash
+# hosted
+claude mcp add psi-mod https://psimod.tacular.dev/mcp --transport http
+# local
+uvicorn psimodpy.server.app:app --port 8000
+claude mcp add psi-mod http://localhost:8000/mcp --transport http
+```
+
+Other clients: point any MCP client that supports streamable HTTP at the `/mcp`
+URL. Requests must send `Accept: application/json, text/event-stream`.
+
+Tools (all return JSON matching the REST models, with `structuredContent` and an
+`outputSchema`):
+
+| tool | arguments | returns |
+|---|---|---|
+| `get_by_id` | `id: str` (`"46"` or `"MOD:00046"`) | Entry or null |
+| `get_by_name` | `name: str` (exact, case-insensitive) | Entry or null |
+| `search` | `query: str`, `limit: int = 25` | `[Summary]`; call `get_by_id` for full records |
+| `get_parents` | `id: str` | `[Entry]`, empty if id unknown |
+| `get_children` | `id: str` | `[Entry]`, empty if id unknown |
+| `get_by_origin` | `aa: str` (one-letter code) | `[Entry]` |
+
+Server instructions string: "Query the PSI-MOD protein modification ontology."
+
+Raw JSON-RPC example:
+
+```bash
+curl -X POST http://localhost:8000/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+       "params":{"name":"get_by_id","arguments":{"id":"MOD:00046"}}}'
+```
+
+In Python, the tool registry is inspectable without a server:
+
+```python
+import asyncio
+from psimodpy.server import mcp
+[t.name for t in asyncio.run(mcp.list_tools())]
+# ['get_by_id', 'get_by_name', 'search', 'get_parents', 'get_children', 'get_by_origin']
+```
+
+
+## 10. Gotchas
+
+1. `load()` includes obsolete terms; `filter()`, `GET /api/entries` exclude them by
+   default. Check `is_obsolete` when counting.
+2. `get_by_origin` is case-sensitive and exact: `"S"` works, `"s"` or `"Ser"`
+   returns `[]`. Crosslinks are returned for each of their sites; `"X"` returns
+   entries whose origin is "any residue", not all entries.
+3. `get_by_id` with a non-numeric string raises `ValueError` (and
+   `GET /api/entries/foo` currently returns HTTP 500 rather than 404).
+4. PSI-MOD formulas are **not** Hill order and use `(13)C`-style isotope prefixes.
+   Use `proforma_diff_formula` for a compact string and `dict_*_formula` for math.
+5. `diff_mono` is the modification delta; `mass_mono` is the full modified residue.
+6. Name lookup is exact; use `search()` for partial matches.
+7. `search("")` returns every entry.
+8. The bundled ontology is a snapshot (see `db.header_lines` for its date). Use
+   `download_obo()` + `load_from()` for the latest release.
+9. `write_tsv` keeps only the first synonym per type.
+10. Importing `psimodpy.server` requires the `server` extra; the core package never
+    imports it.
+
+
+## 11. Related packages
+
+- unimodpy (https://github.com/tacular-omics/unimodpy): UNIMOD, same API shape,
+  hosted at https://unimod.tacular.dev.
+- uniprotptmpy (https://github.com/tacular-omics/uniprotptmpy): UniProt PTM
+  vocabulary, hosted at https://uniprot.tacular.dev.
+- tacular (https://github.com/tacular-omics/tacular): broader MS-proteomics lookup
+  library with its own bundled PSI-MOD, UNIMOD, RESID, XLMOD, GNOme and UniProt-PTM.

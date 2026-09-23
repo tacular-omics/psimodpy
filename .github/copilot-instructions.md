@@ -1,38 +1,16 @@
-## Copilot Instructions
+# Copilot instructions
 
-### VERY IMPORTANT INSTRUCTIONS
+The canonical guide for this repo is [`CLAUDE.md`](../CLAUDE.md) (commands,
+architecture, public API, server/MCP, gotchas). Read it first.
 
-USE THE JUSTFILE WHENEVER POSSIBLE. IF THERE IS NOT A JUSTFILE COMMAND CHECK AGAIN... IF THERE IS STILL NOT A FUCKING JUST COMAND... USE UV PACKAGE MANAGER! THIS IS ALREADY INSTALLED AND AVAILABLE. DO NOT, UNDER ANY CIRCUMSTANCES, INSTALL ANY DEPENDENCIES USING NPM, YARN, PIP, GEM, OR ANY OTHER PACKAGE MANAGER. AND NEVER USE PYHTON / PYTEST DIRECTLY!!! ALWAYS USE JUST FOR AVAILABLE COMMANDS AND ONLY FALL BACK TO UV IF THERE IS NO JUST COMMAND AVAILABLE. 
+Key rules:
 
-### Available Tools
-- Use `just` for all project commands. See `just --list` for available commands.
-- Use `uv` for package management and running scripts. See `uv --help` for usage.
-- Use `git` for version control.
-- Use ty for type checking. `uv run ty check src/ tests/` or `just ty`
-- Use pytest for testing. `uv run pytest tests/` or `just test`
-- use ruff for linting and formatting. `uv run ruff check src/ tests/` or `just lint` and `uv run ruff format src/` or `just format`
-
-### Code Style & Philosophy
-
-- **Type everything**: Use comprehensive type hints (NDArray, Literal, Protocol, Self, etc.). Generic types should be specific. Use pyhton 3.12 features where applicable. Match-case statements preferred over if-elif chains for discrete values >= 3. Use list, tuple, set over List, Tuple, Set where possible. Dont use Union or Optional, use | operator.
-- **Immutability**: Prefer frozen dataclasses with `slots=True` and functional transformations over mutation. Though this is not absolute.
-- **Explicit over implicit**: Clear, descriptive names. No magic. If there's a performance trade-off, make it obvious.
-- **Simplicity**: Simple, readable code over clever one-liners. Break complex logic into smaller functions.
-
-Test do not need to be strongly typed but should still use type hints where reasonable. dont worry about exhaustive typing in tests, nor running ruff/ty on tests.
-
-### Documentation
-
-- Concise docstrings - no novels
-- Document the "why" when non-obvious, not the "what"
-- Type hints are documentation - don't repeat them in docstrings. Methods/Function should be able to get by with no/minimal docstrings if types are clear.
-- Use `Raises` section in docstrings for exceptions
-- No placeholder comments like "TODO: implement later" - use `raise NotImplementedError("reason")`
-
-### Response Style
-
-- Get to the point
-- Show code, minimal explanation
-- If I'm wrong, tell me directly
-- Assume I know Python well - no hand-holding
-
+1. Use `just` recipes, else `uv run ...`. Never install with pip/npm; never bump the
+   version, tag or publish (the tacular-omics overseer releases).
+2. The core package has zero runtime dependencies. fastapi, pydantic and mcp may only
+   be imported under `src/psimodpy/server/`.
+3. Do not hand-edit `src/psimodpy/data/PSI-MOD.obo`; it is the bundled upstream ontology.
+4. Before pushing, CI must pass: `uv run ruff check src tests`,
+   `uv run ruff format --check src tests`, `uv run ty check src`, `uv run pytest tests`.
+5. Keep REST routes and MCP tools in `server/app.py` in sync with each other and
+   with the pydantic models in `server/models.py`.
