@@ -1,3 +1,0 @@
-# Vercel installs from uv.lock (no extras) when present, which drops the
-# server extra (fastapi, mcp). Hide it so requirements.txt (.[server]) is used.
-uv.lock
