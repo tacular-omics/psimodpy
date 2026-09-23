@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.2] (2026-09-23)
+
 ### Fixed
 
 - Server: a malformed id (`GET /api/entries/foo`, `/parents`, `/children`) returns HTTP 422 with a clear message instead of 500; the MCP `get_by_id`, `get_parents` and `get_children` tools return a tool error.
