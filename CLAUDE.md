@@ -72,9 +72,11 @@ src/psimodpy/
     references.py    parse_definition_ref(): "[PubMed:1, RESID:AA0037]" -> list[Reference]
     dashboard.py     dashboard_entries(): JSON payload for docs/index.html
 api/index.py         Vercel entry point; re-exports psimodpy.server.app:app
-vercel.json          one Python function (api/index.py, maxDuration 10 s, includeFiles docs/**),
-                     rewrites every path to /api/index
-requirements.txt     ".[server]": Vercel installs the package itself plus the server extra
+vercel.json          installCommand `uv pip install '.[server]'`; one Python function
+                     (api/index.py, maxDuration 10 s, includeFiles docs/**). No rewrites:
+                     the Vercel Python runtime routes every path to the FastAPI app itself
+requirements.txt     ".[server]"; legacy. Current @vercel/python ignores it when pyproject.toml
+                     exists, which is why vercel.json sets installCommand
 docs/index.html      static browser; fetches relative data.json (Pages file, or the /data.json route on Vercel)
 scripts/             example.py (API tour), export_json.py (docs/data.json),
                      release_version.py (shared release helper; canonical copy in workspace templates/)
@@ -163,6 +165,9 @@ From `psimodpy/__init__.py` (`__all__`):
   adds to Vercel cold start; `maxDuration` is 10 s.
 - `download_obo()` does not replace the bundled data; pass its path to `load_from()`.
 - `just format` rewrites files; CI only checks formatting.
+- Vercel: without `installCommand` the runtime installs from `pyproject.toml`/`uv.lock`
+  with no extras and every request fails with `ModuleNotFoundError: fastapi`. A
+  catch-all rewrite to `/api/index` makes every request 404. Keep both as they are.
 
 ## Releasing
 
