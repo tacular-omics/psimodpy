@@ -192,3 +192,13 @@ def test_contains_accepts_every_getitem_key(db, key):
 @pytest.mark.parametrize("key", [99999, "MOD:99999", "foo", "MOD:abc", "", None, 3.5, (34,)])
 def test_contains_missing_or_malformed_is_false(db, key):
     assert key not in db
+
+
+def test_contains_entry_object(db):
+    import dataclasses
+
+    entry = db[34]
+    assert entry in db
+    assert dataclasses.replace(entry) in db  # equal copy, same id
+    assert dataclasses.replace(entry, name="not in the ontology") not in db
+    assert dataclasses.replace(entry, id=99999) not in db
