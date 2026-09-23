@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.2.1] (2026-09-23)
+
+### Added
+
+- Releases are archived on Zenodo (`.zenodo.json`); no code changes.
+
 ## [0.2.0] (2026-09-23)
 
 ### Added
