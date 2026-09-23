@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+## [0.2.0] (2026-09-23)
+
+### Added
+
+- `write_tsv` and `write_obo` writers; the OBO header round-trips, and entries keep `scope`, `definition_ref` and `header_lines`.
+- Online PSI-MOD browser (GitHub Pages) with search, sort, filter and a detail view with clickable parent and child terms.
+- FastAPI REST API and MCP server (`server` extra), deployable to Vercel, which also serves the browser dashboard at the root.
+
+### Changed
+
+- **Breaking for the `server` extra:** the MCP server was ported from FastMCP (mcp 1.x) to `MCPServer` (mcp 2.x); it now requires mcp 2.
+- MCP tools return typed responses (`structuredContent` with an `outputSchema`).
+- Releases publish to PyPI by trusted publishing; the version lives only in `psimodpy.__version__`, with `CITATION.cff` kept in sync.
+
+### Fixed
+
+- The dashboard HTML is read as UTF-8, so it loads on Windows.
+- The MCP session manager is created per request, fixing session reuse errors on Vercel.
+
+## [0.1.2] (2026-03-27)
+
+- Packaging and build fixes.
+
+## [0.1.1] (2026-03-27)
+
+- Packaging fixes; development dependencies moved to dependency groups.
+
 ## [0.1.0] (2026-03-26)
 
 * First release on PyPI.
