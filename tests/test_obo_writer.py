@@ -84,9 +84,7 @@ def test_round_trip_relationships(db: PsiModDatabase, tmp_path) -> None:
     write_obo(db, out, header_lines=db.header_lines)
     db2 = parse_obo(out)
     e1, e2 = db[125], db2[125]
-    assert {(r.type, r.target_id) for r in e1.relationships} == {
-        (r.type, r.target_id) for r in e2.relationships
-    }
+    assert {(r.type, r.target_id) for r in e1.relationships} == {(r.type, r.target_id) for r in e2.relationships}
 
 
 def test_round_trip_slim_subset(db: PsiModDatabase, tmp_path) -> None:
