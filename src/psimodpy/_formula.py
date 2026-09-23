@@ -17,6 +17,7 @@ import re
 
 # Matches either "(12)C" or "C" followed by whitespace and an integer count (may be negative).
 _TOKEN_RE = re.compile(r"(\(\d+\)[A-Za-z]+|[A-Za-z]+)\s+(-?\d+)")
+_ISOTOPE_RE = re.compile(r"^\((\d+)\)([A-Za-z]+)$")
 
 
 def parse_formula(formula: str) -> dict[str, int]:
@@ -36,21 +37,8 @@ def parse_formula(formula: str) -> dict[str, int]:
     return result
 
 
-def formula_to_hill(composition: dict[str, int]) -> str:
-    """Convert an element-count dict to Hill-notation string.
-
-    Ordering: C (and isotopic carbons) first, H (and isotopic hydrogens) second,
-    then all remaining elements alphabetically. Zero counts are skipped.
-    A count of 1 is omitted. Negative counts are written as e.g. "O-1".
-
-    Examples:
-        >>> formula_to_hill({"C": 3, "H": 5, "N": 1, "O": 1})
-        'C3H5NO'
-        >>> formula_to_hill({"C": 0, "H": -2, "O": -1})
-        'H-2O-1'
-        >>> formula_to_hill({"(12)C": 8, "(13)C": 4, "H": 20})
-        '(12)C8(13)C4H20'
-    """
+def _hill_order(composition: dict[str, int]) -> list[tuple[str, int]]:
+    """Return non-zero (element, count) pairs in Hill order (C, H, then alphabetical)."""
     # Separate into carbon group, hydrogen group, and other
     carbon_group: list[tuple[str, int]] = []
     hydrogen_group: list[tuple[str, int]] = []
@@ -80,13 +68,45 @@ def formula_to_hill(composition: dict[str, int]) -> str:
     hydrogen_group.sort(key=_sort_key)
     other.sort(key=lambda ec: ec[0])
 
-    ordered = carbon_group + hydrogen_group + other
+    return carbon_group + hydrogen_group + other
 
+
+def formula_to_hill(composition: dict[str, int]) -> str:
+    """Convert an element-count dict to Hill-notation string.
+
+    Ordering: C (and isotopic carbons) first, H (and isotopic hydrogens) second,
+    then all remaining elements alphabetically. Zero counts are skipped.
+    A count of 1 is omitted. Negative counts are written as e.g. "O-1".
+    Isotopes keep the PSI-MOD "(13)C" prefix; use formula_to_proforma for ProForma.
+
+    Examples:
+        >>> formula_to_hill({"C": 3, "H": 5, "N": 1, "O": 1})
+        'C3H5NO'
+        >>> formula_to_hill({"C": 0, "H": -2, "O": -1})
+        'H-2O-1'
+        >>> formula_to_hill({"(12)C": 8, "(13)C": 4, "H": 20})
+        '(12)C8(13)C4H20'
+    """
+    return "".join(element if count == 1 else f"{element}{count}" for element, count in _hill_order(composition))
+
+
+def formula_to_proforma(composition: dict[str, int]) -> str:
+    """Convert an element-count dict to a ProForma 2.0 formula string.
+
+    Same ordering and count rules as formula_to_hill, but isotopes use ProForma
+    bracket syntax with the count inside the brackets: "(2)H" x8 becomes "[2H8]".
+
+    Examples:
+        >>> formula_to_proforma({"C": 3, "H": 5, "N": 1, "O": 1})
+        'C3H5NO'
+        >>> formula_to_proforma({"(12)C": 8, "(13)C": 4, "H": 20})
+        '[12C8][13C4]H20'
+        >>> formula_to_proforma({"(13)C": 1, "(12)C": -1})
+        '[12C-1][13C]'
+    """
     parts: list[str] = []
-    for element, count in ordered:
-        if count == 1:
-            parts.append(element)
-        else:
-            parts.append(f"{element}{count}")
-
+    for element, count in _hill_order(composition):
+        suffix = "" if count == 1 else str(count)
+        m = _ISOTOPE_RE.match(element)
+        parts.append(f"[{m.group(1)}{m.group(2)}{suffix}]" if m else f"{element}{suffix}")
     return "".join(parts)
