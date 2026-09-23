@@ -6,11 +6,5 @@
       "maxDuration": 10,
       "includeFiles": "docs/**"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api/index"
-    }
-  ]
+  }
 }
