@@ -22,8 +22,8 @@ jobs:
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
-      - run: uv sync
-      - run: uv run python scripts/export_json.py
+      - run: uv sync --extra server
+      - run: uv run --extra server python scripts/export_json.py
       - uses: actions/upload-pages-artifact@v5
         with:
           path: docs/
