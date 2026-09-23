@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import json
-from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 from mcp.server import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 
 import psimodpy
+from psimodpy.models import PsiModEntry as _Entry
 from psimodpy.server.dashboard import dashboard_entries
 from psimodpy.server.models import (
     EntryListResponse,
@@ -25,11 +26,22 @@ from psimodpy.server.models import (
 
 _db = psimodpy.load()
 _PACKAGE = "psimodpy"
-_VERSION = _pkg_version(_PACKAGE)
 
 
-# Render dashboard payload once at import time.
-_DATA_JSON = json.dumps(dashboard_entries(), separators=(",", ":")).encode()
+class _InvalidIdError(ValueError):
+    """Raised when an ID is neither an integer nor ``MOD:NNNNN``."""
+
+
+def _lookup(id: str) -> _Entry | None:
+    """Return the entry for ``id`` or None; raise _InvalidIdError if ``id`` is malformed."""
+    try:
+        return _db.get_by_id(id)
+    except ValueError:
+        raise _InvalidIdError(f"Invalid PSI-MOD id {id!r}: expected an integer or 'MOD:NNNNN'") from None
+
+
+# Render dashboard payload once at import time, reusing the database parsed above.
+_DATA_JSON = json.dumps(dashboard_entries(_db), separators=(",", ":")).encode()
 
 
 # Locate the static dashboard. On Vercel the function bundle includes ``docs/``
@@ -55,6 +67,13 @@ _DASHBOARD_HTML = _load_dashboard_html()
 # ---------------------------------------------------------------------------
 
 
+def _tool_lookup(id: str) -> _Entry | None:
+    try:
+        return _lookup(id)
+    except _InvalidIdError as exc:
+        raise ToolError(str(exc)) from None
+
+
 def _build_mcp() -> MCPServer:
     mcp = MCPServer(
         _PACKAGE,
@@ -64,7 +83,7 @@ def _build_mcp() -> MCPServer:
     @mcp.tool()
     def get_by_id(id: str) -> PsiModEntry | None:
         """Look up a PSI-MOD entry by ID. Accepts ``"46"`` or ``"MOD:00046"``."""
-        entry = _db.get_by_id(id)
+        entry = _tool_lookup(id)
         return to_psimod_entry(entry) if entry else None
 
     @mcp.tool()
@@ -85,7 +104,7 @@ def _build_mcp() -> MCPServer:
     @mcp.tool()
     def get_parents(id: str) -> list[PsiModEntry]:
         """Return direct ``is_a`` parents of the given entry."""
-        entry = _db.get_by_id(id)
+        entry = _tool_lookup(id)
         if entry is None:
             return []
         return [to_psimod_entry(p) for p in _db.get_parents(entry)]
@@ -93,7 +112,7 @@ def _build_mcp() -> MCPServer:
     @mcp.tool()
     def get_children(id: str) -> list[PsiModEntry]:
         """Return entries with the given entry as a direct ``is_a`` parent."""
-        entry = _db.get_by_id(id)
+        entry = _tool_lookup(id)
         if entry is None:
             return []
         return [to_psimod_entry(c) for c in _db.get_children(entry)]
@@ -131,8 +150,18 @@ class _MCPWrapper:
 app = FastAPI(
     title="psimodpy API",
     description="REST + MCP interface to the PSI-MOD ontology.",
-    version=_VERSION,
+    version=psimodpy.__version__,
 )
+
+
+def _rest_lookup(id: str) -> _Entry:
+    try:
+        entry = _lookup(id)
+    except _InvalidIdError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"No entry for id={id!r}")
+    return entry
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -156,7 +185,7 @@ def health() -> dict:
     return {
         "ok": True,
         "package": _PACKAGE,
-        "version": _VERSION,
+        "version": psimodpy.__version__,
         "count": len(_db),
     }
 
@@ -179,9 +208,7 @@ def list_entries(
 
 @app.get("/api/entries/{id}", response_model=PsiModEntry)
 def get_entry(id: str) -> PsiModEntry:
-    entry = _db.get_by_id(id)
-    if entry is None:
-        raise HTTPException(status_code=404, detail=f"No entry for id={id!r}")
+    entry = _rest_lookup(id)
     return to_psimod_entry(entry)
 
 
@@ -195,17 +222,13 @@ def get_entry_by_name(name: str) -> PsiModEntry:
 
 @app.get("/api/entries/{id}/parents", response_model=list[PsiModEntry])
 def get_entry_parents(id: str) -> list[PsiModEntry]:
-    entry = _db.get_by_id(id)
-    if entry is None:
-        raise HTTPException(status_code=404, detail=f"No entry for id={id!r}")
+    entry = _rest_lookup(id)
     return [to_psimod_entry(p) for p in _db.get_parents(entry)]
 
 
 @app.get("/api/entries/{id}/children", response_model=list[PsiModEntry])
 def get_entry_children(id: str) -> list[PsiModEntry]:
-    entry = _db.get_by_id(id)
-    if entry is None:
-        raise HTTPException(status_code=404, detail=f"No entry for id={id!r}")
+    entry = _rest_lookup(id)
     return [to_psimod_entry(c) for c in _db.get_children(entry)]
 
 

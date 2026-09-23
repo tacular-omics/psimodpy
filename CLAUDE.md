@@ -75,8 +75,6 @@ api/index.py         Vercel entry point; re-exports psimodpy.server.app:app
 vercel.json          installCommand `uv pip install '.[server]'`; one Python function
                      (api/index.py, maxDuration 10 s, includeFiles docs/**). No rewrites:
                      the Vercel Python runtime routes every path to the FastAPI app itself
-requirements.txt     ".[server]"; legacy. Current @vercel/python ignores it when pyproject.toml
-                     exists, which is why vercel.json sets installCommand
 docs/index.html      static browser; fetches relative data.json (Pages file, or the /data.json route on Vercel)
 scripts/             example.py (API tour), export_json.py (docs/data.json),
                      release_version.py (shared release helper; canonical copy in workspace templates/)
@@ -93,7 +91,7 @@ calls `psimodpy.load()` once at import (obsolete terms included) and serves from
 | `GET /data.json` | dashboard payload, `Cache-Control: public, max-age=3600` |
 | `GET /api/health` | `{ok, package, version, count}` |
 | `GET /api/entries?limit=50&offset=0&include_obsolete=false` | `EntryListResponse`; limit 1-500; **excludes obsolete by default** |
-| `GET /api/entries/{id}` | `PsiModEntry`; `46` or `MOD:00046`; 404 if unknown |
+| `GET /api/entries/{id}` | `PsiModEntry`; `46` or `MOD:00046`; 404 if unknown, 422 if malformed |
 | `GET /api/entries/by-name/{name}` | exact name, case-insensitive; 404 if unknown |
 | `GET /api/entries/{id}/parents` | direct `is_a` parents |
 | `GET /api/entries/{id}/children` | direct `is_a` children |
@@ -148,7 +146,8 @@ From `psimodpy/__init__.py` (`__all__`):
 ## Gotchas
 
 - IDs are stored as `int`. `get_by_id` accepts `46`, `"46"` or `"MOD:00046"`, but a
-  non-numeric string (`"foo"`) raises `ValueError`, so `GET /api/entries/foo` returns 500.
+  non-numeric string (`"foo"`) raises `ValueError`. The server maps that to HTTP 422
+  (`/api/entries/{id}`, `/parents`, `/children`) and to an MCP tool error.
 - `load()` includes obsolete terms (2116); `filter()` and `GET /api/entries` exclude
   them by default (1996). Obsolete terms carry `xref_remap` (replacement id).
 - `get_by_origin` is exact and case-sensitive on single-letter codes. Crosslinks
@@ -159,10 +158,9 @@ From `psimodpy/__init__.py` (`__all__`):
 - `Source.ARTIFACTUAL` exists because four OBO entries use that spelling.
 - `definition_ref` is the raw bracketed citation string (`"[PubMed:..., RESID:...]"`);
   the server splits it into `references`.
-- `/api/health` reads the version from installed package metadata, not `__version__`;
-  a stale editable install (as in the workspace `.venv`) reports the old version.
-- The server parses the OBO twice at import (`app.py` and `dashboard_entries()`), which
-  adds to Vercel cold start; `maxDuration` is 10 s.
+- `/api/health` reports `psimodpy.__version__`, not installed package metadata.
+- The server parses the OBO once at import and passes that database to
+  `dashboard_entries(db)`; keep it that way, Vercel `maxDuration` is 10 s.
 - `download_obo()` does not replace the bundled data; pass its path to `load_from()`.
 - `just format` rewrites files; CI only checks formatting.
 - Vercel: without `installCommand` the runtime installs from `pyproject.toml`/`uv.lock`

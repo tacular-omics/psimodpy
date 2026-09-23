@@ -409,8 +409,8 @@ from psimodpy.server import mcp
 2. `get_by_origin` is case-sensitive and exact: `"S"` works, `"s"` or `"Ser"`
    returns `[]`. Crosslinks are returned for each of their sites; `"X"` returns
    entries whose origin is "any residue", not all entries.
-3. `get_by_id` with a non-numeric string raises `ValueError` (and
-   `GET /api/entries/foo` currently returns HTTP 500 rather than 404).
+3. `get_by_id` with a non-numeric string raises `ValueError`. The server answers
+   `GET /api/entries/foo` with HTTP 422 and the MCP tools with a tool error.
 4. PSI-MOD formulas are **not** Hill order and use `(13)C`-style isotope prefixes.
    Use `proforma_diff_formula` for a compact string and `dict_*_formula` for math.
 5. `diff_mono` is the modification delta; `mass_mono` is the full modified residue.
