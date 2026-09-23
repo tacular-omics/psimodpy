@@ -71,8 +71,11 @@ class PsiModDatabase:
     def __contains__(self, id: object) -> bool:
         """Return True if ``db[id]`` would succeed; accepts 34, "34", "00034" or "MOD:00034".
 
+        A PsiModEntry is contained if an equal entry is stored under its id.
         Malformed or unsupported keys return False instead of raising.
         """
+        if isinstance(id, PsiModEntry):
+            return self._by_id.get(id.id) == id
         if not isinstance(id, int | str):
             return False
         try:
