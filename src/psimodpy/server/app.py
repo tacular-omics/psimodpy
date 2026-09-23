@@ -41,7 +41,7 @@ def _load_dashboard_html() -> str | None:
     ):
         try:
             if candidate.is_file():
-                return candidate.read_text()
+                return candidate.read_text(encoding="utf-8")
         except OSError:
             continue
     return None
