@@ -68,6 +68,18 @@ class PsiModDatabase:
             raise KeyError(id)
         return entry
 
+    def __contains__(self, id: object) -> bool:
+        """Return True if ``db[id]`` would succeed; accepts 34, "34", "00034" or "MOD:00034".
+
+        Malformed or unsupported keys return False instead of raising.
+        """
+        if not isinstance(id, int | str):
+            return False
+        try:
+            return self.get_by_id(id) is not None
+        except ValueError:
+            return False
+
     def __len__(self) -> int:
         return len(self._by_id)
 

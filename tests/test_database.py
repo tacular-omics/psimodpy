@@ -181,3 +181,14 @@ def test_iter_contains_all_ids(db):
     assert 0 in ids
     assert 1 in ids
     assert 99999 not in ids
+
+
+@pytest.mark.parametrize("key", [34, "34", "00034", "MOD:00034", "mod:00034"])
+def test_contains_accepts_every_getitem_key(db, key):
+    assert key in db
+    assert db[key].id == 34
+
+
+@pytest.mark.parametrize("key", [99999, "MOD:99999", "foo", "MOD:abc", "", None, 3.5, (34,)])
+def test_contains_missing_or_malformed_is_false(db, key):
+    assert key not in db

@@ -204,10 +204,13 @@ class PsiModEntry:
 
     @property
     def proforma_diff_formula(self) -> str | None:
-        """Hill-notation string for diff_formula, e.g. 'C2H2O'. Returns None if no formula."""
+        """ProForma 2.0 formula for diff_formula in Hill order, e.g. 'C2H2O' or '[13C6]H2'.
+
+        Isotopes use ProForma bracket syntax ("[2H8]"). Returns None if no formula.
+        """
         composition = self.dict_diff_formula
         if composition is None:
             return None
-        from psimodpy._formula import formula_to_hill
+        from psimodpy._formula import formula_to_proforma
 
-        return formula_to_hill(composition)
+        return formula_to_proforma(composition)

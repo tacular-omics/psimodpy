@@ -1,6 +1,8 @@
 """Tests for PSI-MOD formula parsing and Hill notation conversion."""
 
-from psimodpy._formula import formula_to_hill, parse_formula
+import re
+
+from psimodpy._formula import formula_to_hill, formula_to_proforma, parse_formula
 
 
 class TestParseFormula:
@@ -136,3 +138,51 @@ class TestFormulaOnEntries:
         comp = isotopic[0].dict_formula
         assert comp is not None
         assert "(12)C" in comp
+
+
+# ProForma 2.0 formula: isotopes as "[13C2]" (count, possibly negative, inside the brackets),
+# plain elements as "C2" / "H-2".
+_PROFORMA_TOKEN_RE = re.compile(r"\[(\d+)([A-Z][a-z]?)(-?\d+)?\]|([A-Z][a-z]?)(-?\d+)?")
+_PROFORMA_FORMULA_RE = re.compile(r"^(?:\[\d+[A-Z][a-z]?(?:-?[1-9]\d*)?\]|[A-Z][a-z]?(?:-?[1-9]\d*)?)*$")
+
+
+def _parse_proforma(formula: str) -> dict[str, int]:
+    """Parse a ProForma formula back into PSI-MOD element keys ('(13)C', 'H')."""
+    assert _PROFORMA_FORMULA_RE.fullmatch(formula), formula
+    result: dict[str, int] = {}
+    for iso, iso_el, iso_n, el, n in _PROFORMA_TOKEN_RE.findall(formula):
+        key = f"({iso}){iso_el}" if iso else el
+        count = iso_n if iso else n
+        result[key] = result.get(key, 0) + (int(count) if count else 1)
+    return result
+
+
+class TestFormulaToProforma:
+    def test_plain_matches_hill(self):
+        assert formula_to_proforma({"C": 3, "H": 5, "N": 1, "O": 1}) == "C3H5NO"
+        assert formula_to_proforma({"C": 0, "H": -2, "O": -1}) == "H-2O-1"
+
+    def test_isotopes_use_brackets(self):
+        assert formula_to_proforma({"(12)C": 8, "(13)C": 4, "H": 20}) == "[12C8][13C4]H20"
+
+    def test_isotope_count_one_and_negative(self):
+        assert formula_to_proforma({"(13)C": 1, "(12)C": -1}) == "[12C-1][13C]"
+
+    def test_mod_00402_deuterium(self, db):
+        formula = db[402].proforma_diff_formula
+        assert formula is not None
+        assert "(" not in formula
+        assert "[2H8]" in formula
+
+    def test_every_entry_parses_and_round_trips(self, db):
+        checked = 0
+        for entry in db:
+            for composition in (entry.dict_diff_formula, entry.dict_formula):
+                if composition is None:
+                    continue
+                formula = formula_to_proforma(composition)
+                assert _parse_proforma(formula) == {k: v for k, v in composition.items() if v != 0}, entry.id
+                checked += 1
+            if entry.proforma_diff_formula is not None:
+                assert _PROFORMA_FORMULA_RE.fullmatch(entry.proforma_diff_formula), entry.id
+        assert checked > 1000
