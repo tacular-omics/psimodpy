@@ -1,12 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "uv pip install '.[server]'",
   "functions": {
     "api/index.py": {
       "maxDuration": 10,
       "includeFiles": "docs/**"
     }
-  },
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
-  ]
+  }
 }
