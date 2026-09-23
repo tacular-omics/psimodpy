@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 
 import psimodpy
@@ -55,12 +55,10 @@ _DASHBOARD_HTML = _load_dashboard_html()
 # ---------------------------------------------------------------------------
 
 
-def _build_mcp() -> FastMCP:
-    mcp = FastMCP(
+def _build_mcp() -> MCPServer:
+    mcp = MCPServer(
         _PACKAGE,
         instructions="Query the PSI-MOD protein modification ontology.",
-        stateless_http=True,
-        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
     )
 
     @mcp.tool()
@@ -118,11 +116,14 @@ mcp = _build_mcp()
 
 
 # Vercel doesn't fire ASGI lifespan events, and StreamableHTTPSessionManager.run()
-# can only be called once per instance, so we build a fresh FastMCP per request.
+# can only be called once per instance, so we build a fresh MCPServer per request.
 class _MCPWrapper:
     async def __call__(self, scope, receive, send) -> None:
         m = _build_mcp()
-        http_app = m.streamable_http_app()
+        http_app = m.streamable_http_app(
+            stateless_http=True,
+            transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+        )
         async with m.session_manager.run():
             await http_app(scope, receive, send)
 
