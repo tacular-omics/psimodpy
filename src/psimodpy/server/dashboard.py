@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import psimodpy
+from psimodpy.database import PsiModDatabase
 from psimodpy.models import Crosslink
 
 
-def dashboard_entries() -> list[dict]:
-    db = psimodpy.load()
+def dashboard_entries(db: PsiModDatabase | None = None) -> list[dict]:
+    """Return one JSON-ready dict per entry; loads the bundled database if ``db`` is None."""
+    if db is None:
+        db = psimodpy.load()
     entries: list[dict] = []
     for entry in db:
         if isinstance(entry.origin, Crosslink):

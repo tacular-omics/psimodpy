@@ -172,3 +172,56 @@ def test_rest_search_returns_summaries() -> None:
         assert {"query", "total", "limit", "items"} <= set(body)
         for item in body["items"]:
             PsiModSummary.model_validate(item)
+
+
+# ---------------------------------------------------------------------------
+# Malformed IDs, health version, import cost
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/entries/foo", "/api/entries/foo/parents", "/api/entries/foo/children", "/api/entries/MOD:abc"],
+)
+def test_rest_malformed_id_returns_422(path: str) -> None:
+    client = TestClient(app, raise_server_exceptions=False)
+    r = client.get(path)
+    assert r.status_code == 422
+    assert "Invalid PSI-MOD id" in r.json()["detail"]
+
+
+@pytest.mark.parametrize("tool", ["get_by_id", "get_parents", "get_children"])
+def test_mcp_malformed_id_returns_tool_error(mcp_client: TestClient, tool: str) -> None:
+    _mcp(mcp_client, "initialize", _INIT_PARAMS)
+    resp = _mcp(mcp_client, "tools/call", {"name": tool, "arguments": {"id": "foo"}}, req_id=2)
+    result = resp["result"]
+    assert result["isError"] is True
+    assert "Invalid PSI-MOD id" in result["content"][0]["text"]
+
+
+def test_health_reports_dunder_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    import psimodpy
+
+    monkeypatch.setattr(psimodpy, "__version__", "9.9.9-test")
+    r = TestClient(app).get("/api/health")
+    assert r.status_code == 200
+    assert r.json()["version"] == "9.9.9-test"
+
+
+def test_server_import_parses_obo_once() -> None:
+    import subprocess
+    import sys
+
+    code = (
+        "import psimodpy.parser as p\n"
+        "calls = []\n"
+        "orig = p.parse_obo\n"
+        "def counting(*a, **k):\n"
+        "    calls.append(1)\n"
+        "    return orig(*a, **k)\n"
+        "p.parse_obo = counting\n"
+        "import psimodpy.server.app\n"
+        "print(len(calls))\n"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.strip().splitlines()[-1] == "1"
