@@ -14,7 +14,7 @@ abstract: >-
   intended for proteomics software, annotation pipelines, and research
   scripts that need programmatic access to PSI-MOD terms. It requires
   Python 3.12 or later.
-version: "0.2.1"
+version: "0.2.2"
 authors:
   - family-names: Garrett
     given-names: Patrick T.
