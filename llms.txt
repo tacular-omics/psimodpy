@@ -7,7 +7,7 @@
 
 `import psimodpy; db = psimodpy.load(); db["MOD:00046"].name` returns
 `"O-phospho-L-serine"`. Entries are frozen dataclasses with mass, formula
-(also as a Hill string via `proforma_diff_formula`), origin residue, synonyms and
+(also as a ProForma string via `proforma_formula`), origin residue, synonyms and
 cross-references to Unimod, UniProt PTM and GNOme.
 
 An optional `server` extra (`pip install "psimodpy[server]"`) adds a FastAPI REST

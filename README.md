@@ -50,8 +50,8 @@ entry = db[46]
 print(entry.name)             # O-phospho-L-serine
 print(entry.origin)           # S
 print(entry.diff_mono)        # 79.966331
-print(entry.dict_diff_formula)      # {'C': 0, 'H': 1, 'N': 0, 'O': 3, 'P': 1}
-print(entry.proforma_diff_formula)  # HO3P
+print(entry.dict_composition)  # {'H': 1, 'O': 3, 'P': 1}
+print(entry.proforma_formula)   # HO3P
 
 # Lookup by exact name (case-insensitive)
 same_entry = db.get_by_name("O-phospho-L-serine")
@@ -110,10 +110,9 @@ claude mcp add psi-mod http://localhost:8000/mcp --transport http
 
 | Function | Description |
 |----------|-------------|
-| `psimodpy.load()` | Load the bundled PSI-MOD database. |
-| `psimodpy.load_from(path)` | Load from a custom OBO file. |
+| `psimodpy.load(source=None, *, refresh=False, include_obsolete=True)` | Load the bundled PSI-MOD database, an OBO file (`source`), or the latest release (`refresh=True`). |
 | `psimodpy.parse_obo(path)` | Parse an OBO file into a database. |
-| `psimodpy.download_obo()` | Download the latest OBO file from GitHub. |
+| `psimodpy.download(dest=None, *, force=False)` | Download the latest OBO file from GitHub. |
 | `psimodpy.write_tsv(entries, path, *, delimiter)` | Write entries to a TSV (or CSV) file. |
 | `psimodpy.write_obo(entries, path, *, header_lines)` | Write entries back to PSI-MOD OBO format. |
 
@@ -124,7 +123,10 @@ claude mcp add psi-mod http://localhost:8000/mcp --transport http
 `relationships`, `origin`, `diff_mono`, `diff_avg`, `diff_formula`, `mass_mono`, `mass_avg`,
 `formula`, `term_spec`, `source`, `formal_charge`, `xref_unimod`, `xref_uniprot_ptm`,
 `xref_gnome`, `xref_remap`, `in_slim_subset`, `is_obsolete`, plus computed
-`dict_diff_formula`, `dict_formula`, `proforma_diff_formula`.
+`dict_composition`, `dict_formula`, `proforma_formula`.
+
+**Errors**: `PsimodError`, and `PsimodParseError` (also a `ValueError`) for malformed OBO input.
+`get_by_id` returns `None` for an unknown or malformed id; only `db[key]` raises (`KeyError`).
 
 **Data types**: `AminoAcid`, `Crosslink`, `Synonym` / `SynonymType`, `Relationship` /
 `RelationshipType`, `TermSpec`, `Source`.

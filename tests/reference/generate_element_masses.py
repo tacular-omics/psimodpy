@@ -28,7 +28,7 @@ OUT = Path(__file__).with_name("element_masses.json")
 def main() -> None:
     keys: set[str] = set()
     for entry in psimodpy.load():
-        for comp in (entry.dict_diff_formula, entry.dict_formula):
+        for comp in (entry.dict_composition, entry.dict_formula):
             for token in comp or {}:
                 m = _KEY_RE.match(token)
                 if m is None:

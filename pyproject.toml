@@ -14,7 +14,7 @@ maintainers = [
     { name = "Patrick Garrett", email = "pgarrett@scripps.edu" }
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",

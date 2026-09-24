@@ -240,7 +240,7 @@ function render(){
 <td class="nc">${x(e.name)}</td>
 <td>${fmtOrigin(e.origin)}</td>
 <td class="mc">${e.diff_mono!=null?e.diff_mono.toFixed(6):'<span style="color:#d1d5db">—</span>'}</td>
-<td class="fc">${e.proforma_diff_formula?`<code>${x(e.proforma_diff_formula)}</code>`:'<span style="color:#d1d5db">—</span>'}</td>
+<td class="fc">${e.proforma_formula?`<code>${x(e.proforma_formula)}</code>`:'<span style="color:#d1d5db">—</span>'}</td>
 <td>${e.source?`<span class="tag ${SRC[e.source]||'tgr'}">${x(e.source)}</span>`:'<span style="color:#d1d5db">—</span>'}</td>
 <td><div class="tags">${statTags.join('')||'<span style="color:#d1d5db">—</span>'}</div></td>`;
     tr.addEventListener('click',()=>openDetail(e));
@@ -297,7 +297,7 @@ function detail(e){
 <div><div class="dl">Δ Average</div><div class="dv mono">${e.diff_avg!=null?e.diff_avg.toFixed(4)+' Da':'—'}</div></div>
 <div><div class="dl">Monoisotopic Mass</div><div class="dv mono">${e.mass_mono!=null?e.mass_mono.toFixed(6)+' Da':'—'}</div></div>
 <div><div class="dl">Average Mass</div><div class="dv mono">${e.mass_avg!=null?e.mass_avg.toFixed(4)+' Da':'—'}</div></div>
-${e.proforma_diff_formula?`<div><div class="dl">Δ Formula</div><div class="dv mono"><code>${x(e.proforma_diff_formula)}</code></div></div>`:''}
+${e.proforma_formula?`<div><div class="dl">Δ Formula</div><div class="dv mono"><code>${x(e.proforma_formula)}</code></div></div>`:''}
 ${e.origin!==null&&e.origin!==undefined?`<div><div class="dl">Origin</div><div class="dv">${fmtOrigin(e.origin)}</div></div>`:''}
 ${e.source?`<div><div class="dl">Source</div><div class="dv"><span class="tag ${SRC[e.source]||'tgr'}">${x(e.source)}</span></div></div>`:''}
 ${e.term_spec&&e.term_spec!=='none'?`<div><div class="dl">Term Specificity</div><div class="dv">${x(e.term_spec)}</div></div>`:''}

@@ -62,8 +62,14 @@ class PsiModEntry(BaseModel):
     diff_mono: float | None
     diff_avg: float | None
     diff_formula: str | None
-    proforma_diff_formula: str | None
-    dict_diff_formula: dict[str, int] | None
+    proforma_formula: str | None
+    dict_composition: dict[str, int] | None
+    proforma_diff_formula: str | None = Field(
+        None, deprecated=True, description="Deprecated duplicate of proforma_formula; removed in 2.0."
+    )
+    dict_diff_formula: dict[str, int] | None = Field(
+        None, deprecated=True, description="Deprecated duplicate of dict_composition; removed in 2.0."
+    )
     mass_mono: float | None
     mass_avg: float | None
     formula: str | None
@@ -88,6 +94,13 @@ class PsiModSummary(BaseModel):
     name: str
     mass_mono: float | None
     is_obsolete: bool
+
+
+class HealthResponse(BaseModel):
+    ok: bool
+    package: str
+    version: str
+    count: int
 
 
 class EntryListResponse(BaseModel):
@@ -150,8 +163,10 @@ def to_psimod_entry(entry: _PsiModEntry) -> PsiModEntry:
         diff_mono=entry.diff_mono,
         diff_avg=entry.diff_avg,
         diff_formula=entry.diff_formula,
-        proforma_diff_formula=entry.proforma_diff_formula,
-        dict_diff_formula=entry.dict_diff_formula,
+        proforma_formula=entry.proforma_formula,
+        dict_composition=entry.dict_composition,
+        proforma_diff_formula=entry.proforma_formula,
+        dict_diff_formula=entry.dict_composition,
         mass_mono=entry.mass_mono,
         mass_avg=entry.mass_avg,
         formula=entry.formula,
