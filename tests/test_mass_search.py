@@ -17,7 +17,9 @@ def _mass(entry) -> float | None:
     return entry.get_mass()
 
 
-def _brute(db: PsiModDatabase, delta, tolerance=0.01, tolerance_unit="da", site=None, position=None, include_obsolete=False):
+def _brute(
+    db: PsiModDatabase, delta, tolerance=0.01, tolerance_unit="da", site=None, position=None, include_obsolete=False
+):
     """Linear scan reference: every entry, inclusive window test, sorted by (|error|, mass, order)."""
     assert tolerance_unit == "da"
     tol = tolerance + 1e-9 * max(1.0, abs(delta))  # inclusive edges, same slack as the index
