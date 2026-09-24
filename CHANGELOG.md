@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- `dict_diff_formula` and `dict_formula` key isotopes like tacular, peptacular and unimodpy (`"13C"`) instead of the OBO's `"(13)C"`, so they can be passed to `peptacular.chem_mass` and agree with `proforma_diff_formula`: MOD:00452 is now `{"13C": 3, "H": 4, "O": 1}` (265 entries with isotopes; the REST/MCP `dict_*_formula` fields change the same way). `formula_to_hill` and `formula_to_proforma` accept either key style; new helper `psimodpy._formula.to_isotope_keys`.
 - `db[key]` falls back to a case-insensitive name lookup (`db["O-phospho-L-serine"]`), and raises `KeyError`, not `ValueError`, for a malformed key such as `db["foo"]`; `get_by_id("foo")` still raises `ValueError`. A non-int/str key (`db[34.0]`, `db[None]`) now raises `KeyError` instead of resolving or raising `TypeError`, matching `34.0 in db` being False. Id strings may have surrounding whitespace.
 - Hill and ProForma formulas sort an isotope with its element: MOD:00531 is now `H-1N-1[18O]`, was `H-1[18O]N-1` (14 entries).
 - `34 in db` (and `"34"`, `"00034"`, `"MOD:00034"`) is now True when `db[34]` exists: `PsiModDatabase` has a `__contains__` that accepts the same keys as `db[...]` and returns False for missing or malformed keys. `entry in db` is still True for a `PsiModEntry` equal to the one stored under its id.

@@ -186,21 +186,24 @@ class PsiModEntry:
 
     @property
     def dict_diff_formula(self) -> dict[str, int] | None:
-        """Parse diff_formula into {element: count}. Returns None if no formula."""
+        """Parse diff_formula into {element: count}. Returns None if no formula.
+
+        Isotopes are keyed like tacular and peptacular ("13C"), not like the OBO ("(13)C").
+        """
         if self.diff_formula is None:
             return None
-        from psimodpy._formula import parse_formula
+        from psimodpy._formula import parse_formula, to_isotope_keys
 
-        return parse_formula(self.diff_formula)
+        return to_isotope_keys(parse_formula(self.diff_formula))
 
     @property
     def dict_formula(self) -> dict[str, int] | None:
-        """Parse formula into {element: count}. Returns None if no formula."""
+        """Parse formula into {element: count}; isotopes keyed "13C". None if no formula."""
         if self.formula is None:
             return None
-        from psimodpy._formula import parse_formula
+        from psimodpy._formula import parse_formula, to_isotope_keys
 
-        return parse_formula(self.formula)
+        return to_isotope_keys(parse_formula(self.formula))
 
     @property
     def proforma_diff_formula(self) -> str | None:

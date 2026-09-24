@@ -142,7 +142,19 @@ class TestFormulaOnEntries:
         assert len(isotopic) > 0
         comp = isotopic[0].dict_formula
         assert comp is not None
-        assert "(12)C" in comp
+        assert "12C" in comp
+
+    def test_dict_formulas_use_tacular_isotope_keys(self, db):
+        """Isotopes are keyed "13C" (tacular/peptacular/unimodpy style), not PSI-MOD's "(13)C"."""
+        assert db[452].dict_diff_formula == {"13C": 3, "H": 4, "O": 1}
+        for entry in db:
+            for comp in (entry.dict_diff_formula, entry.dict_formula):
+                assert not any(k.startswith("(") for k in comp or {}), entry.id
+
+    def test_hill_and_proforma_accept_both_key_styles(self):
+        assert formula_to_proforma({"13C": 4, "12C": 8, "H": 20}) == "[12C8][13C4]H20"
+        assert formula_to_proforma({"H": -1, "N": -1, "18O": 1}) == "H-1N-1[18O]"
+        assert formula_to_hill({"(13)C": 4, "(12)C": 8, "H": 20}) == "(12)C8(13)C4H20"
 
 
 # ProForma 2.0 formula: isotopes as "[13C2]" (count, possibly negative, inside the brackets),
@@ -152,11 +164,11 @@ _PROFORMA_FORMULA_RE = re.compile(r"^(?:\[\d+[A-Z][a-z]?(?:-?[1-9]\d*)?\]|[A-Z][
 
 
 def _parse_proforma(formula: str) -> dict[str, int]:
-    """Parse a ProForma formula back into PSI-MOD element keys ('(13)C', 'H')."""
+    """Parse a ProForma formula back into element keys ('13C', 'H')."""
     assert _PROFORMA_FORMULA_RE.fullmatch(formula), formula
     result: dict[str, int] = {}
     for iso, iso_el, iso_n, el, n in _PROFORMA_TOKEN_RE.findall(formula):
-        key = f"({iso}){iso_el}" if iso else el
+        key = f"{iso}{iso_el}" if iso else el
         count = iso_n if iso else n
         result[key] = result.get(key, 0) + (int(count) if count else 1)
     return result
