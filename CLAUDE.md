@@ -119,6 +119,7 @@ Tools (return pydantic models, so clients get `structuredContent` + `outputSchem
 
 From `psimodpy/__init__.py` (`__all__`):
 
+- Mass search (1.1): `db.search_mass(delta, *, tolerance=0.01, unit="da", site=None, position=None)` over `diff_mono`, returns `(entry, delta - mass)` closest first; `db.get_by_site(site)`. The index and site/position rules live in `_mass.py`, identical in psimodpy, unimodpy and uniprotptmpy: keep the three copies in sync.
 - Loading: `load(source=None, *, refresh=False, include_obsolete=True, cache=False)`, `parse_obo(path)`,
   `download(dest=None, *, force=False)`; deprecated `load_from(path)`, `download_obo`.
 - Errors: `PsimodError`, `PsimodParseError`, `PsimodKeyError`.

@@ -63,6 +63,11 @@ print(len(hits))              # 99
 # Every modification known to occur on a given amino acid
 ser_mods = db.get_by_origin("S")
 print(len(ser_mods))          # 154
+
+# Entries whose monoisotopic mass difference is within 0.01 Da of 79.966, on S, T or Y
+for entry, error in db.search_mass(79.966, site="STY")[:3]:
+    print(entry.name, round(error, 4))   # O-phospho-L-serine -0.0003 ...
+db.search_mass(42.010565, site="A", position="protein n-term")  # [(N-acetyl-L-alanine, ~0.0)]
 ```
 
 ## More
