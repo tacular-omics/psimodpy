@@ -113,6 +113,17 @@ class SearchResponse(BaseModel):
     )
 
 
+class SummaryPage(BaseModel):
+    """A bounded list of summaries, returned by the MCP list tools."""
+
+    total: int = Field(description="Number of matching entries before ``limit`` was applied.")
+    limit: int
+    truncated: bool = Field(description="True when ``total > limit``; raise ``limit`` to see more.")
+    items: list[PsiModSummary] = Field(
+        description="Lightweight summaries; call get_by_id for the full record.",
+    )
+
+
 class OriginResponse(BaseModel):
     origin: str
     count: int
@@ -173,6 +184,15 @@ def to_psimod_entry(entry: _PsiModEntry) -> PsiModEntry:
         xref_remap=entry.xref_remap,
         in_slim_subset=entry.in_slim_subset,
         is_obsolete=entry.is_obsolete,
+    )
+
+
+def to_summary_page(entries: list[_PsiModEntry], limit: int) -> SummaryPage:
+    return SummaryPage(
+        total=len(entries),
+        limit=limit,
+        truncated=len(entries) > limit,
+        items=[to_psimod_summary(e) for e in entries[:limit]],
     )
 
 

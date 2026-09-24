@@ -190,13 +190,19 @@ def test_rest_malformed_id_returns_404(path: str) -> None:
     assert "No entry" in r.json()["detail"]
 
 
-@pytest.mark.parametrize(("tool", "expected"), [("get_by_id", None), ("get_parents", []), ("get_children", [])])
+_EMPTY_PAGE = {"total": 0, "limit": 25, "truncated": False, "items": []}
+
+
+@pytest.mark.parametrize(
+    ("tool", "expected"), [("get_by_id", None), ("get_parents", _EMPTY_PAGE), ("get_children", _EMPTY_PAGE)]
+)
 def test_mcp_malformed_id_returns_empty_result(mcp_client: TestClient, tool: str, expected: object) -> None:
     _mcp(mcp_client, "initialize", _INIT_PARAMS)
     resp = _mcp(mcp_client, "tools/call", {"name": tool, "arguments": {"id": "foo"}}, req_id=2)
     result = resp["result"]
     assert not result.get("isError")
-    assert result["structuredContent"] == {"result": expected}
+    sc = result["structuredContent"]
+    assert (sc if expected is not None else sc["result"]) == expected
 
 
 @pytest.mark.parametrize("arguments", [{"query": ""}, {"query": "phospho", "limit": 0}, {"query": "a", "limit": 501}])
