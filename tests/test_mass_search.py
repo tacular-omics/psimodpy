@@ -17,9 +17,9 @@ def _mass(entry) -> float | None:
     return entry.get_mass()
 
 
-def _brute(db: PsiModDatabase, delta, tolerance=0.01, unit="da", site=None, position=None, include_obsolete=False):
+def _brute(db: PsiModDatabase, delta, tolerance=0.01, tolerance_unit="da", site=None, position=None, include_obsolete=False):
     """Linear scan reference: every entry, inclusive window test, sorted by (|error|, mass, order)."""
-    assert unit == "da"
+    assert tolerance_unit == "da"
     tol = tolerance + 1e-9 * max(1.0, abs(delta))  # inclusive edges, same slack as the index
     sq = parse_site(site, PsimodError) if site is not None else None
     pq = parse_position(position, PsimodError) if position is not None else None
@@ -149,7 +149,7 @@ def test_unknown_position_raises(db: PsiModDatabase, position: object) -> None:
 @pytest.mark.parametrize("unit", ["ppm", "PPM", "Da", "DA", " da", "da ", "mda", "", None, 1])
 def test_unknown_unit_raises(db: PsiModDatabase, unit: object) -> None:
     with pytest.raises(PsimodError, match="unit"):
-        db.search_mass(79.966, unit=unit)  # type: ignore[arg-type]
+        db.search_mass(79.966, tolerance_unit=unit)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("delta", [math.nan, math.inf, -math.inf, "79.9", None, True])

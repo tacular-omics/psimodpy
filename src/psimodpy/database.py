@@ -159,7 +159,7 @@ class PsiModDatabase:
         delta: float,
         *,
         tolerance: float = 0.01,
-        unit: str = "da",
+        tolerance_unit: str = "da",
         site: str | None = None,
         position: str | None = None,
         include_obsolete: bool = False,
@@ -176,7 +176,7 @@ class PsiModDatabase:
             delta: Observed monoisotopic mass shift in Da; may be negative.
             tolerance: Window half-width in Da; both edges are inclusive (with a 1e-9 relative
                 slack for float rounding), and ``0`` means an exact match.
-            unit: Only ``"da"`` (the default), exact and lowercase; anything else raises.
+            tolerance_unit: Only ``"da"`` (the default), exact and lowercase; anything else raises.
                 ppm is not offered: a ppm window on a delta mass is ill-defined (relative
                 to the delta, or to the modified peptide's mass?). The keyword is kept so
                 the call matches ``tacular.tolerance``; other units may be added later.
@@ -196,12 +196,12 @@ class PsiModDatabase:
 
         Raises:
             PsimodError: ``delta`` or ``tolerance`` is not a finite number (or ``tolerance`` < 0),
-                or ``unit``, ``site`` or ``position`` is not one of the values above.
+                or ``tolerance_unit``, ``site`` or ``position`` is not one of the values above.
         """
         if self._mass_index is None:
             self._mass_index = MassIndex((e, e.get_mass(), _slots(e)) for e in self._by_id.values())
         hits = self._mass_index.search(
-            delta, tolerance=tolerance, unit=unit, site=site, position=position, error=PsimodError
+            delta, tolerance=tolerance, tolerance_unit=tolerance_unit, site=site, position=position, error=PsimodError
         )
         if not isinstance(include_obsolete, bool):
             raise PsimodError(f"include_obsolete must be a bool, got {include_obsolete!r}")

@@ -9,7 +9,7 @@
 `"O-phospho-L-serine"`. Entries are frozen dataclasses with mass, formula
 (also as a ProForma string via `proforma_formula`), origin residue, synonyms and
 cross-references to Unimod, UniProt PTM and GNOme.
-`db.search_mass(79.966, tolerance=0.01, unit="da", site="STY", position=None)` (1.1) finds entries by monoisotopic delta mass (`diff_mono`), returning `(entry, delta - mass)` pairs closest first; `db.get_by_site("S")` lists entries on a residue.
+`db.search_mass(79.966, tolerance=0.01, tolerance_unit="da", site="STY", position=None)` (1.1) finds entries by monoisotopic delta mass (`diff_mono`), returning `(entry, delta - mass)` pairs closest first; `db.get_by_site("S")` lists entries on a residue.
 
 An optional `server` extra (`pip install "psimodpy[server]"`) adds a FastAPI REST
 API and an MCP endpoint (`/mcp`, streamable HTTP) with tools `get_by_id`,

@@ -125,7 +125,7 @@ claude mcp add psi-mod http://localhost:8000/mcp --transport http
 `get_by_site`, `search_mass`, `get_parents`, `get_children`, `get_related`, `filter`,
 `write_tsv`, `write_obo`, `header_lines`.
 
-`search_mass(delta, *, tolerance=0.01, unit="da", site=None, position=None,
+`search_mass(delta, *, tolerance=0.01, tolerance_unit="da", site=None, position=None,
 include_obsolete=False)` returns `(entry, delta - diff_mono)` pairs within `tolerance` Da
 (edges inclusive), closest first; `site` may list several residues (`"STY"`), while
 `get_by_site(site)` takes exactly one.
