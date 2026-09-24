@@ -14,7 +14,7 @@ from psimodpy.database import _slots
 
 
 def _mass(entry) -> float | None:
-    return entry.diff_mono
+    return entry.get_mass()
 
 
 def _brute(db: PsiModDatabase, delta, tolerance=0.01, unit="da", site=None, position=None, include_obsolete=False):

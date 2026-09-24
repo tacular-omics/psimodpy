@@ -192,6 +192,13 @@ class PsiModEntry:
         """The MOD accession, e.g. "MOD:00696" (the ``accession`` field of the REST/MCP wire model)."""
         return f"MOD:{self.id:05d}"
 
+    def get_mass(self, *, monoisotopic: bool = True) -> float | None:
+        """The mass difference in Da: ``diff_mono`` (default) or, with ``monoisotopic=False``, ``diff_avg``.
+
+        ``None`` when PSI-MOD gives no such mass for this entry.
+        """
+        return self.diff_mono if monoisotopic else self.diff_avg
+
     @property
     def dict_composition(self) -> dict[str, int] | None:
         """Parse diff_formula into {element: count}. Returns None if no formula.
