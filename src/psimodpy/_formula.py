@@ -66,7 +66,8 @@ def _hill_order(composition: dict[str, int]) -> list[tuple[str, int]]:
 
     carbon_group.sort(key=_sort_key)
     hydrogen_group.sort(key=_sort_key)
-    other.sort(key=lambda ec: ec[0])
+    # Alphabetical by element symbol, so an isotope sorts with its element: N, (15)N, O, (18)O
+    other.sort(key=lambda ec: (re.sub(r"^\(\d+\)", "", ec[0]), _sort_key(ec)[0]))
 
     return carbon_group + hydrogen_group + other
 

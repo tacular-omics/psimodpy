@@ -83,6 +83,11 @@ class TestFormulaToHill:
         result = formula_to_hill({"(13)C": 4, "(12)C": 8, "H": 2})
         assert result.index("(12)C") < result.index("(13)C")
 
+    def test_isotope_sorts_with_its_element(self):
+        # Hill order is alphabetical by element symbol; an isotope sorts with its element.
+        assert formula_to_hill({"H": -1, "N": -1, "(18)O": 1}) == "H-1N-1(18)O"
+        assert formula_to_hill({"(15)N": 1, "N": 1, "O": 1, "(18)O": 1}) == "N(15)NO(18)O"
+
     def test_empty_composition(self):
         assert formula_to_hill({}) == ""
 

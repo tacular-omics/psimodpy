@@ -202,3 +202,45 @@ def test_contains_entry_object(db):
     assert dataclasses.replace(entry) in db  # equal copy, same id
     assert dataclasses.replace(entry, name="not in the ontology") not in db
     assert dataclasses.replace(entry, id=99999) not in db
+
+
+# ------------------------------------------------------------------
+# Uniform lookup: [] / get / in agree, and match unimodpy and uniprotptmpy
+# ------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("key", [34, "34", "00034", "MOD:00034", "mod:00034", " MOD:00034 "])
+def test_get_accepts_every_id_form(db, key):
+    assert db.get(key) is db[34]
+
+
+@pytest.mark.parametrize("key", [99999, "MOD:99999", "foo", "MOD:abc", "", None, 3.5, 34.0, (34,), [34]])
+def test_get_missing_or_malformed_returns_default(db, key):
+    assert db.get(key) is None
+    sentinel = object()
+    assert db.get(key, sentinel) is sentinel
+
+
+@pytest.mark.parametrize("key", ["foo", "MOD:abc", "", None, 34.0, (34,), [34]])
+def test_getitem_malformed_raises_keyerror(db, key):
+    with pytest.raises(KeyError):
+        db[key]
+
+
+def test_getitem_falls_back_to_name(db):
+    entry = db[46]
+    assert db[entry.name] is entry
+    assert db[entry.name.upper()] is entry
+    assert entry.name.upper() in db
+    assert db.get(entry.name) is entry
+
+
+def test_get_by_id_malformed_string_still_raises_valueerror(db):
+    # The server relies on this to answer HTTP 422.
+    with pytest.raises(ValueError):
+        db.get_by_id("foo")
+
+
+def test_get_by_id_non_int_or_str_returns_none(db):
+    assert db.get_by_id(34.0) is None  # ty: ignore[invalid-argument-type]
+    assert db.get_by_id(None) is None  # ty: ignore[invalid-argument-type]

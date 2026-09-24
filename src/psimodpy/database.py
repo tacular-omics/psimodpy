@@ -47,41 +47,55 @@ class PsiModDatabase:
     def get_by_id(self, id: int | str) -> PsiModEntry | None:
         """Return the entry for the given ID, or None if not found.
 
-        Accepts an integer (34) or a string in MOD:NNNNN format ("MOD:00034").
+        Accepts an integer (34) or a string: "34", "00034" or "MOD:00034" (prefix
+        case-insensitive, surrounding whitespace ignored). Raises ValueError for a
+        string that is not an id; returns None for any other type.
         """
         if isinstance(id, str):
             # Accept "MOD:00034" or plain "34"
+            id = id.strip()
             if id.upper().startswith("MOD:"):
                 id = int(id[4:])
             else:
                 id = int(id)
+        elif not isinstance(id, int):
+            return None
         return self._by_id.get(id)
 
     def get_by_name(self, name: str) -> PsiModEntry | None:
         """Return the entry with the given name (case-insensitive), or None."""
         return self._by_name_lower.get(name.lower())
 
-    def __getitem__(self, id: int | str) -> PsiModEntry:
-        """Return entry by ID; raise KeyError if not found."""
-        entry = self.get_by_id(id)
+    def get(self, key: object, default: PsiModEntry | None = None) -> PsiModEntry | None:
+        """Return ``db[key]``, or ``default`` if it would raise. Never raises."""
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __getitem__(self, key: object) -> PsiModEntry:
+        """Return the entry by id (34, "34", "00034", "MOD:00034") or, failing that, by name
+        (case-insensitive). Raise KeyError for a missing, malformed or non-int/str key."""
+        entry = None
+        if isinstance(key, int | str):
+            try:
+                entry = self.get_by_id(key)
+            except ValueError:
+                entry = None
+            if entry is None and isinstance(key, str):
+                entry = self.get_by_name(key)
         if entry is None:
-            raise KeyError(id)
+            raise KeyError(key)
         return entry
 
-    def __contains__(self, id: object) -> bool:
-        """Return True if ``db[id]`` would succeed; accepts 34, "34", "00034" or "MOD:00034".
+    def __contains__(self, key: object) -> bool:
+        """Return True if ``db[key]`` would succeed; never raises.
 
         A PsiModEntry is contained if an equal entry is stored under its id.
-        Malformed or unsupported keys return False instead of raising.
         """
-        if isinstance(id, PsiModEntry):
-            return self._by_id.get(id.id) == id
-        if not isinstance(id, int | str):
-            return False
-        try:
-            return self.get_by_id(id) is not None
-        except ValueError:
-            return False
+        if isinstance(key, PsiModEntry):
+            return self._by_id.get(key.id) == key
+        return self.get(key) is not None
 
     def __len__(self) -> int:
         return len(self._by_id)

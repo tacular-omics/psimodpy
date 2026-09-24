@@ -2,8 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `PsiModDatabase.get(key, default=None)`: returns `db[key]` or `default`, never raises. `db[key]`, `db.get(key)` and `key in db` now accept the same keys and agree, as in unimodpy and uniprotptmpy.
+- Tests recompute every entry's monoisotopic and average mass from its parsed formula against a frozen NIST table (pyteomics 5.0.1; generator in `tests/reference/`), plus Hypothesis property tests for the lookups. Upstream data errors found: MOD:00523, MOD:00577 and MOD:02105 masses disagree with their formulas; MOD:01982 adds the electron for its 1+ charge instead of removing it; MOD:00578 has an empty formula.
+
 ### Fixed
 
+- `db[key]` falls back to a case-insensitive name lookup (`db["O-phospho-L-serine"]`), and raises `KeyError`, not `ValueError`, for a malformed key such as `db["foo"]`; `get_by_id("foo")` still raises `ValueError`. A non-int/str key (`db[34.0]`, `db[None]`) now raises `KeyError` instead of resolving or raising `TypeError`, matching `34.0 in db` being False. Id strings may have surrounding whitespace.
+- Hill and ProForma formulas sort an isotope with its element: MOD:00531 is now `H-1N-1[18O]`, was `H-1[18O]N-1` (14 entries).
 - `34 in db` (and `"34"`, `"00034"`, `"MOD:00034"`) is now True when `db[34]` exists: `PsiModDatabase` has a `__contains__` that accepts the same keys as `db[...]` and returns False for missing or malformed keys. `entry in db` is still True for a `PsiModEntry` equal to the one stored under its id.
 - `PsiModEntry.proforma_diff_formula` now writes isotopes in ProForma 2.0 syntax (`[2H8]`, `[13C6]`) instead of PSI-MOD's `(2)H8`; this affected 265 entries, e.g. MOD:00402 is now `C22[1H30][2H8]N4O6S`. New helper `psimodpy._formula.formula_to_proforma`.
 
