@@ -39,8 +39,8 @@ entry.origin                         # <AminoAcid.SER: 'S'>
 entry.diff_mono                      # 79.966331
 entry.diff_avg                       # 79.98
 entry.diff_formula                   # 'C 0 H 1 N 0 O 3 P 1'   (PSI-MOD format)
-entry.dict_diff_formula              # {'C': 0, 'H': 1, 'N': 0, 'O': 3, 'P': 1}
-entry.proforma_diff_formula          # 'HO3P'                  (Hill notation)
+entry.dict_composition               # {'H': 1, 'O': 3, 'P': 1} (zero counts dropped)
+entry.proforma_formula               # 'HO3P'                  (ProForma, Hill order)
 entry.mass_mono                      # 166.998359              (whole residue)
 entry.formula                        # 'C 3 H 6 N 1 O 5 P 1'
 entry.xref_unimod                    # 'Unimod:21'
@@ -58,33 +58,36 @@ len(db.get_by_origin("S"))                      # 154 (every mod on serine)
 
 ## 3. Loading
 
-### `psimodpy.load(*, include_obsolete: bool = True) -> PsiModDatabase`
+### `psimodpy.load(source=None, *, refresh=False, include_obsolete=True) -> PsiModDatabase`
 
-Load the bundled `PSI-MOD.obo` shipped inside the wheel. Obsolete terms are
-included by default (2116 terms); `include_obsolete=False` gives 1996. Obsolete
-terms are useful because they carry `xref_remap`, the id of the replacement term.
-
-### `psimodpy.load_from(path: Path | str) -> PsiModDatabase`
-
-Load a database from any PSI-MOD OBO file on disk (for example a newer release
-fetched with `download_obo`). Same as `parse_obo`.
+With no `source`, load the bundled `PSI-MOD.obo` shipped inside the wheel. Pass a
+path to load any PSI-MOD OBO file, or `refresh=True` to download the latest
+release (`download(force=True)`) and load that. Obsolete terms are included by
+default (2116 terms); `include_obsolete=False` gives 1996 and keeps `header_lines`.
+Obsolete terms are useful because they carry `xref_remap`, the id of the
+replacement term. `load_from(path)` is a deprecated alias of `load(path)`.
 
 ### `psimodpy.parse_obo(path: Path | str) -> PsiModDatabase`
 
 Parse an OBO file. Keeps the file's header lines on `db.header_lines` so
-`write_obo` can round-trip them.
+`write_obo` can round-trip them. A malformed id, mass, charge or remap value raises
+`PsimodParseError` (a `PsimodError` and a `ValueError`) naming the file and line; a
+duplicate id raises `PsimodError`. Recoverable problems only `warnings.warn`: a
+`[Term]` without id or name is skipped, an unknown synonym type, relationship type,
+TermSpec or Source is kept as a plain string, and an unrecognised line is dropped.
 
-### `psimodpy.download_obo(dest: Path | str | None = None, *, force: bool = False) -> Path`
+### `psimodpy.download(dest: Path | str | None = None, *, force: bool = False) -> Path`
 
 Download the latest `PSI-MOD.obo` from
 `https://raw.githubusercontent.com/HUPO-PSI/psi-mod-CV/master/PSI-MOD.obo`.
 Default destination is `~/.cache/psimodpy/PSI-MOD.obo`. If the file already
 exists it is returned without downloading unless `force=True`. This does **not**
-change what `load()` returns; use the returned path with `load_from`:
+change what `load()` returns; use `load(refresh=True)` or pass the path to `load`.
+`download_obo` is a deprecated alias.
 
 ```python
-path = psimodpy.download_obo()
-latest = psimodpy.load_from(path)
+path = psimodpy.download()
+latest = psimodpy.load(path)
 ```
 
 
@@ -94,10 +97,10 @@ In-memory index over `PsiModEntry` objects.
 
 | member | purpose |
 |---|---|
-| `PsiModDatabase(entries, *, header_lines=())` | build from any iterable of entries |
+| `PsiModDatabase(entries, *, header_lines=())` | build from any iterable of entries; `PsimodError` on a duplicate id |
 | `db[id]` | entry by id; raises `KeyError` if absent |
 | `get_by_id(id: int \| str) -> PsiModEntry \| None` | accepts `46`, `"46"`, `"MOD:00046"` (prefix case-insensitive) |
-| `get_by_name(name: str) -> PsiModEntry \| None` | exact name, case-insensitive |
+| `get_by_name(name: str) -> PsiModEntry \| None` | exact name, case-insensitive; for a duplicate name the first non-obsolete entry wins |
 | `search(query: str) -> list[PsiModEntry]` | case-insensitive substring in name, definition or any synonym; `""` returns all |
 | `get_by_origin(aa: str) -> list[PsiModEntry]` | entries whose origin includes this one-letter code (case-sensitive) |
 | `get_parents(entry) -> list[PsiModEntry]` | direct `is_a` parents |
@@ -113,8 +116,8 @@ Notes:
 
 - `get_parents`, `get_children` and `get_related` take an **entry**, not an id:
   `db.get_children(db[696])`.
-- `get_by_id("foo")` (a non-numeric string without `MOD:`) raises `ValueError`;
-  an unknown numeric id returns `None`.
+- `get_by_id` returns `None` for an unknown id, a malformed one (`"foo"`, `""`) and a
+  `bool`; it never raises.
 - `filter()` defaults to `include_obsolete=False`, the opposite of `load()`.
 
 ```python
@@ -148,7 +151,7 @@ their fields are) or `StrEnum`s (compare equal to their string value).
 | `id` | `int` | numeric part of `MOD:NNNNN` (format with `f"MOD:{id:05d}"`) |
 | `name` | `str` | term name |
 | `definition` | `str` | definition text, citation block stripped |
-| `definition_ref` | `str` | raw citation block, e.g. `"[PubMed:12923550, RESID:AA0037, Unimod:21#S]"`; default `"[]"` |
+| `definition_ref` | `str` | citation list without brackets, e.g. `"PubMed:12923550, RESID:AA0037, Unimod:21#S"`; default `""` |
 | `synonyms` | `tuple[Synonym, ...]` | typed synonyms |
 | `is_a` | `tuple[int, ...]` | parent ids (PSI-MOD allows several) |
 | `relationships` | `tuple[Relationship, ...]` | non-`is_a` links |
@@ -158,8 +161,8 @@ their fields are) or `StrEnum`s (compare equal to their string value).
 | `mass_mono`, `mass_avg` | `float \| None` | full residue masses (MassMono, MassAvg) |
 | `formula` | `str \| None` | full residue formula in PSI-MOD format |
 | `origin` | `AminoAcid \| Crosslink \| None` | residue(s) the modification sits on |
-| `term_spec` | `TermSpec \| None` | positional specificity |
-| `source` | `Source \| None` | natural / artifact / hypothetical |
+| `term_spec` | `TermSpec \| str \| None` | positional specificity (raw string if unknown) |
+| `source` | `Source \| str \| None` | natural / artifact / hypothetical (raw string if unknown) |
 | `formal_charge` | `int \| None` | signed net charge (`"1+"` -> `1`, `"2-"` -> `-2`) |
 | `xref_unimod` | `str \| None` | e.g. `"Unimod:21"` |
 | `xref_uniprot_ptm` | `str \| None` | e.g. `"PTM-0253"` |
@@ -170,16 +173,17 @@ their fields are) or `StrEnum`s (compare equal to their string value).
 
 Computed properties:
 
-- `dict_diff_formula -> dict[str, int] | None`: `diff_formula` parsed; zero and
-  negative counts kept; isotopes keyed like tacular, `"13C"` (the OBO writes `(13)C`).
+- `dict_composition -> dict[str, int] | None`: `diff_formula` parsed; zero counts
+  dropped, negative counts kept; isotopes keyed like tacular, `"13C"` (the OBO writes `(13)C`).
 - `dict_formula -> dict[str, int] | None`: same for `formula`.
-- `proforma_diff_formula -> str | None`: `dict_diff_formula` in Hill notation
-  (C, then H, then alphabetical; zero counts dropped; count 1 omitted; negatives
-  written `H-2`). Example: L-cystine cross-link (`MOD:00034`) gives `"H-2"`.
+- `proforma_formula -> str | None`: `dict_composition` as a ProForma formula in Hill
+  order (C, then H, then alphabetical; no spaces; count 1 omitted; negatives written
+  `H-2`; isotopes `[13C6]`). Example: L-cystine cross-link (`MOD:00034`) gives `"H-2"`.
+- `dict_diff_formula`, `proforma_diff_formula`: deprecated aliases (DeprecationWarning).
 
 ### `Synonym`
 
-`Synonym(value: str, type: SynonymType, scope: str = "EXACT")`.
+`Synonym(value: str, type: SynonymType | str, scope: str = "EXACT")`; `type` is the raw string for an unknown type.
 
 ### `Relationship`
 
@@ -318,7 +322,7 @@ terms included.
 | `GET /data.json` | JSON payload used by the dashboard (cached 1 h) |
 | `GET /api/health` | `{"ok": true, "package": "psimodpy", "version": ..., "count": 2116}` |
 | `GET /api/entries` | paged list. Query: `limit` (1-500, default 50), `offset` (default 0), `include_obsolete` (default **false**). Returns `{total, limit, offset, items: [Entry]}` |
-| `GET /api/entries/{id}` | one Entry; `id` is `46` or `MOD:00046`. 404 if not found |
+| `GET /api/entries/{id}` | one Entry; `id` is `46` or `MOD:00046`. 404 if not found or malformed |
 | `GET /api/entries/by-name/{name}` | one Entry by exact, case-insensitive name. 404 if not found |
 | `GET /api/entries/{id}/parents` | `[Entry]`, direct `is_a` parents. 404 if id unknown |
 | `GET /api/entries/{id}/children` | `[Entry]`, direct `is_a` children. 404 if id unknown |
@@ -333,7 +337,8 @@ field plus:
 - `references`: `definition_ref` split into `[{type, accession, value}]`, e.g.
   `{"type": "PubMed", "accession": "12923550", "value": null}`; `URL:`/`URI:`
   tokens go into `value`, tokens without a colon become `{"type": "Misc", "value": ...}`.
-- `dict_diff_formula`, `dict_formula`, `proforma_diff_formula`.
+- `dict_composition`, `dict_formula`, `proforma_formula` (plus deprecated duplicates
+  `dict_diff_formula`, `proforma_diff_formula`, removed in 2.0).
 - `origin`: `{"type": "amino_acid", "code": "S"}` or
   `{"type": "crosslink", "sites": ["C", "C"]}` or `null`.
 - enums as plain strings.
@@ -409,15 +414,15 @@ from psimodpy.server import mcp
 2. `get_by_origin` is case-sensitive and exact: `"S"` works, `"s"` or `"Ser"`
    returns `[]`. Crosslinks are returned for each of their sites; `"X"` returns
    entries whose origin is "any residue", not all entries.
-3. `get_by_id` with a non-numeric string raises `ValueError`. The server answers
-   `GET /api/entries/foo` with HTTP 422 and the MCP tools with a tool error.
+3. `get_by_id` with a malformed id (`"foo"`) returns `None`. The server answers
+   `GET /api/entries/foo` with HTTP 404 and the MCP tools with `null` / `[]`.
 4. PSI-MOD formulas are **not** Hill order and use `(13)C`-style isotope prefixes.
-   Use `proforma_diff_formula` for a compact string and `dict_*_formula` for math.
+   Use `proforma_formula` for a compact string and `dict_composition` / `dict_formula` for math.
 5. `diff_mono` is the modification delta; `mass_mono` is the full modified residue.
 6. Name lookup is exact; use `search()` for partial matches.
 7. `search("")` returns every entry.
 8. The bundled ontology is a snapshot (see `db.header_lines` for its date). Use
-   `download_obo()` + `load_from()` for the latest release.
+   `load(refresh=True)` for the latest release.
 9. `write_tsv` keeps only the first synonym per type.
 10. Importing `psimodpy.server` requires the `server` extra; the core package never
     imports it.

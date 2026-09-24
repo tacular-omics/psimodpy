@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 import importlib.resources
-from collections.abc import Iterator
+import warnings
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
+from psimodpy.errors import PsimodError
 from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, RelationshipType
 
 
 class PsiModDatabase:
-    """In-memory database of PSI-MOD entries with multiple lookup strategies."""
+    """In-memory database of PSI-MOD entries with multiple lookup strategies.
+
+    Raises:
+        PsimodError: if two entries share an id.
+    """
 
     def __init__(
         self,
-        entries: list[PsiModEntry] | Iterator[PsiModEntry],
+        entries: Iterable[PsiModEntry],
         *,
         header_lines: tuple[str, ...] = (),
     ) -> None:
@@ -25,8 +31,15 @@ class PsiModDatabase:
         self.header_lines: tuple[str, ...] = header_lines
 
         for entry in entries:
+            if entry.id in self._by_id:
+                raise PsimodError(f"duplicate id MOD:{entry.id:05d} ({self._by_id[entry.id].name!r}, {entry.name!r})")
             self._by_id[entry.id] = entry
-            self._by_name_lower[entry.name.lower()] = entry
+            # Duplicate names: the first non-obsolete entry wins; an obsolete entry only
+            # holds a name until a non-obsolete entry with the same name arrives.
+            key = entry.name.lower()
+            held = self._by_name_lower.get(key)
+            if held is None or (held.is_obsolete and not entry.is_obsolete):
+                self._by_name_lower[key] = entry
 
             # Index by each amino acid in origin
             if isinstance(entry.origin, AminoAcid):
@@ -48,22 +61,29 @@ class PsiModDatabase:
         """Return the entry for the given ID, or None if not found.
 
         Accepts an integer (34) or a string: "34", "00034" or "MOD:00034" (prefix
-        case-insensitive, surrounding whitespace ignored). Raises ValueError for a
-        string that is not an id; returns None for any other type.
+        case-insensitive, surrounding whitespace ignored). Returns None for a string
+        that is not an id ("foo", ""), a bool, or any other type; never raises.
         """
-        if isinstance(id, str):
-            # Accept "MOD:00034" or plain "34"
-            id = id.strip()
-            if id.upper().startswith("MOD:"):
-                id = int(id[4:])
-            else:
-                id = int(id)
-        elif not isinstance(id, int):
+        if isinstance(id, bool):
             return None
-        return self._by_id.get(id)
+        if isinstance(id, str):
+            text = id.strip()
+            if text[:4].upper() == "MOD:":
+                text = text[4:].strip()
+            if not text.isascii() or not text.isdigit():
+                return None
+            return self._by_id.get(int(text))
+        if isinstance(id, int):
+            return self._by_id.get(id)
+        return None
 
     def get_by_name(self, name: str) -> PsiModEntry | None:
-        """Return the entry with the given name (case-insensitive), or None."""
+        """Return the entry with the given name (case-insensitive), or None.
+
+        PSI-MOD reuses a few names (e.g. "desmosine" is both obsolete MOD:00949 and
+        MOD:01933). For a duplicate name the first non-obsolete entry in file order
+        wins; an obsolete entry is returned only if no non-obsolete entry has the name.
+        """
         return self._by_name_lower.get(name.lower())
 
     def get(self, key: object, default: PsiModEntry | None = None) -> PsiModEntry | None:
@@ -78,10 +98,7 @@ class PsiModDatabase:
         (case-insensitive). Raise KeyError for a missing, malformed or non-int/str key."""
         entry = None
         if isinstance(key, int | str):
-            try:
-                entry = self.get_by_id(key)
-            except ValueError:
-                entry = None
+            entry = self.get_by_id(key)
             if entry is None and isinstance(key, str):
                 entry = self.get_by_name(key)
         if entry is None:
@@ -187,32 +204,44 @@ class PsiModDatabase:
         return write_obo(self._by_id.values(), path, header_lines=self.header_lines)
 
 
-def load(*, include_obsolete: bool = True) -> PsiModDatabase:
-    """Load the bundled PSI-MOD database.
+def load(
+    source: Path | str | None = None,
+    *,
+    refresh: bool = False,
+    include_obsolete: bool = True,
+) -> PsiModDatabase:
+    """Load the PSI-MOD database.
 
     Args:
+        source: Path to a PSI-MOD OBO file. If omitted, uses the bundled file.
+        refresh: Download the latest OBO from HUPO-PSI (``download(force=True)``)
+            and load that. Ignored when ``source`` is given.
         include_obsolete: If True (default), include obsolete entries. Obsolete
             entries carry xref_remap redirects useful for cross-reference resolution.
             Pass False to exclude them.
 
     Returns:
-        A PsiModDatabase populated from the bundled PSI-MOD.obo file.
+        A PsiModDatabase; ``header_lines`` is kept whatever ``include_obsolete`` is.
     """
     from psimodpy.parser import parse_obo
 
-    pkg_data = importlib.resources.files("psimodpy.data")
-    obo_path = pkg_data.joinpath("PSI-MOD.obo")
-    # importlib.resources returns a Traversable; write to a temp path if needed
-    with importlib.resources.as_file(obo_path) as path:
-        db = parse_obo(Path(path))
+    if source is not None:
+        db = parse_obo(source)
+    elif refresh:
+        from psimodpy import _download
+
+        db = parse_obo(_download.download(force=True))
+    else:
+        obo_path = importlib.resources.files("psimodpy.data").joinpath("PSI-MOD.obo")
+        with importlib.resources.as_file(obo_path) as path:
+            db = parse_obo(Path(path))
 
     if not include_obsolete:
-        return PsiModDatabase(e for e in db if not e.is_obsolete)
+        return PsiModDatabase((e for e in db if not e.is_obsolete), header_lines=db.header_lines)
     return db
 
 
 def load_from(path: Path | str) -> PsiModDatabase:
-    """Load PSI-MOD database from a custom OBO file path."""
-    from psimodpy.parser import parse_obo
-
-    return parse_obo(path)
+    """Deprecated alias of ``load(path)``; will be removed in 2.0."""
+    warnings.warn("load_from(path) is deprecated; use load(path)", DeprecationWarning, stacklevel=2)
+    return load(path)

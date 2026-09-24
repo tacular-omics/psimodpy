@@ -6,7 +6,7 @@ import csv
 from collections.abc import Iterable
 from pathlib import Path
 
-from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, SynonymType
+from psimodpy.models import AminoAcid, Crosslink, PsiModEntry
 
 _FIXED_PREFIX: tuple[str, ...] = (
     "id",
@@ -36,17 +36,17 @@ _FIXED_SUFFIX: tuple[str, ...] = ("is_a", "relationships")
 _SUB_DELIM = "; "
 
 
-def _synonym_types(entries: Iterable[PsiModEntry]) -> list[SynonymType]:
-    """Return sorted unique SynonymType values found across entries."""
-    seen: set[SynonymType] = set()
+def _synonym_types(entries: Iterable[PsiModEntry]) -> list[str]:
+    """Return sorted unique synonym types (SynonymType values or unknown raw strings) across entries."""
+    seen: set[str] = set()
     for e in entries:
         for s in e.synonyms:
-            seen.add(s.type)
-    return sorted(seen, key=lambda t: t.value)
+            seen.add(str(s.type))
+    return sorted(seen)
 
 
-def _synonym_col(syn_type: SynonymType) -> str:
-    return "synonym_" + syn_type.value.lower().replace("-", "_")
+def _synonym_col(syn_type: str) -> str:
+    return "synonym_" + str(syn_type).lower().replace("-", "_")
 
 
 def _cell(value: object) -> str:
@@ -77,12 +77,12 @@ def build_columns(entries: Iterable[PsiModEntry]) -> tuple[str, ...]:
     return _FIXED_PREFIX + syn_cols + _FIXED_SUFFIX
 
 
-def to_row(entry: PsiModEntry, syn_types: list[SynonymType]) -> list[str]:
+def to_row(entry: PsiModEntry, syn_types: list[str]) -> list[str]:
     """Flatten a PsiModEntry to a list of column values."""
-    syn_by_type: dict[SynonymType, str] = {}
+    syn_by_type: dict[str, str] = {}
     for s in entry.synonyms:
-        if s.type not in syn_by_type:
-            syn_by_type[s.type] = s.value
+        if str(s.type) not in syn_by_type:
+            syn_by_type[str(s.type)] = s.value
 
     return [
         f"MOD:{entry.id:05d}",

@@ -103,35 +103,35 @@ class TestFormulaToHill:
 
 
 class TestFormulaOnEntries:
-    def test_dict_diff_formula_phospho(self):
+    def test_dict_composition_phospho(self):
         """MOD:00046 DiffFormula 'C 0 H 0 N 0 O 3 P 1' → dict includes P:1."""
         import psimodpy
 
         db = psimodpy.load()
         entry = db.get_by_id(46)
-        comp = entry.dict_diff_formula
+        comp = entry.dict_composition
         assert comp is not None
         assert comp["P"] == 1
         assert comp["O"] == 3
 
-    def test_proforma_diff_formula_phospho(self):
-        """MOD:00046 proforma_diff_formula should be 'O3P'."""
+    def test_proforma_formula_phospho(self):
+        """MOD:00046 proforma_formula should be 'O3P'."""
         import psimodpy
 
         db = psimodpy.load()
         entry = db.get_by_id(46)
-        pf = entry.proforma_diff_formula
+        pf = entry.proforma_formula
         assert pf is not None
         assert "O3" in pf
         assert "P" in pf
 
-    def test_dict_diff_formula_none_when_missing(self):
-        """Root entry (MOD:00000) has no diff_formula → dict_diff_formula is None."""
+    def test_dict_composition_none_when_missing(self):
+        """Root entry (MOD:00000) has no diff_formula → dict_composition is None."""
         import psimodpy
 
         db = psimodpy.load()
         root = db.get_by_id(0)
-        assert root.dict_diff_formula is None
+        assert root.dict_composition is None
 
     def test_dict_formula_isotopic(self):
         """Isotopic formula entries return correct dict."""
@@ -146,9 +146,9 @@ class TestFormulaOnEntries:
 
     def test_dict_formulas_use_tacular_isotope_keys(self, db):
         """Isotopes are keyed "13C" (tacular/peptacular/unimodpy style), not PSI-MOD's "(13)C"."""
-        assert db[452].dict_diff_formula == {"13C": 3, "H": 4, "O": 1}
+        assert db[452].dict_composition == {"13C": 3, "H": 4, "O": 1}
         for entry in db:
-            for comp in (entry.dict_diff_formula, entry.dict_formula):
+            for comp in (entry.dict_composition, entry.dict_formula):
                 assert not any(k.startswith("(") for k in comp or {}), entry.id
 
     def test_hill_and_proforma_accept_both_key_styles(self):
@@ -186,7 +186,7 @@ class TestFormulaToProforma:
         assert formula_to_proforma({"(13)C": 1, "(12)C": -1}) == "[12C-1][13C]"
 
     def test_mod_00402_deuterium(self, db):
-        formula = db[402].proforma_diff_formula
+        formula = db[402].proforma_formula
         assert formula is not None
         assert "(" not in formula
         assert "[2H8]" in formula
@@ -194,12 +194,12 @@ class TestFormulaToProforma:
     def test_every_entry_parses_and_round_trips(self, db):
         checked = 0
         for entry in db:
-            for composition in (entry.dict_diff_formula, entry.dict_formula):
+            for composition in (entry.dict_composition, entry.dict_formula):
                 if composition is None:
                     continue
                 formula = formula_to_proforma(composition)
                 assert _parse_proforma(formula) == {k: v for k, v in composition.items() if v != 0}, entry.id
                 checked += 1
-            if entry.proforma_diff_formula is not None:
-                assert _PROFORMA_FORMULA_RE.fullmatch(entry.proforma_diff_formula), entry.id
+            if entry.proforma_formula is not None:
+                assert _PROFORMA_FORMULA_RE.fullmatch(entry.proforma_formula), entry.id
         assert checked > 1000

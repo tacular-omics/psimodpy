@@ -235,12 +235,6 @@ def test_getitem_falls_back_to_name(db):
     assert db.get(entry.name) is entry
 
 
-def test_get_by_id_malformed_string_still_raises_valueerror(db):
-    # The server relies on this to answer HTTP 422.
-    with pytest.raises(ValueError):
-        db.get_by_id("foo")
-
-
 def test_get_by_id_non_int_or_str_returns_none(db):
     assert db.get_by_id(34.0) is None  # ty: ignore[invalid-argument-type]
     assert db.get_by_id(None) is None  # ty: ignore[invalid-argument-type]

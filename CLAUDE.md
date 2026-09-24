@@ -24,7 +24,7 @@ independent copy of PSI-MOD and does not import psimodpy.
 
 ```bash
 just install          # uv sync
-just test             # uv run pytest tests            (141 tests, ~5 s)
+just test             # uv run pytest tests            (265 tests, ~10 s)
 just lint             # uv run ruff check src
 just format           # ruff isort fix + ruff format on src (mutates files)
 just ty               # uv run ty check src
@@ -59,12 +59,14 @@ src/psimodpy/
   models.py          frozen dataclasses (PsiModEntry, Synonym, Relationship, Crosslink)
                      and StrEnums (AminoAcid, SynonymType, RelationshipType, TermSpec, Source)
   parser.py          parse_obo(): line-based OBO reader -> PsiModDatabase; keeps header lines
+  errors.py          PsimodError, PsimodParseError(PsimodError, ValueError)
   database.py        PsiModDatabase (indexes by id, lowercase name, origin, reverse is_a),
-                     load() for the bundled file, load_from(path)
+                     load(source=None, *, refresh, include_obsolete); load_from deprecated
   _formula.py        parse_formula("C 0 H 1 O 3 P 1") -> dict; formula_to_hill(dict) -> "HO3P"
   _tabular.py        write_tsv(): fixed columns + one synonym_<type> column per type seen
   _obo_writer.py     write_obo(): round-trips through parse_obo
-  _download.py       download_obo(): fetch latest OBO from HUPO-PSI GitHub to ~/.cache/psimodpy
+  _download.py       download(): fetch latest OBO from HUPO-PSI GitHub to ~/.cache/psimodpy
+                     (download_obo deprecated alias)
   data/PSI-MOD.obo   bundled ontology (force-included in wheel and sdist)
   server/            optional; imports fastapi/pydantic/mcp at module import
     app.py           FastAPI app + MCPServer tools (see below)
@@ -91,7 +93,7 @@ calls `psimodpy.load()` once at import (obsolete terms included) and serves from
 | `GET /data.json` | dashboard payload, `Cache-Control: public, max-age=3600` |
 | `GET /api/health` | `{ok, package, version, count}` |
 | `GET /api/entries?limit=50&offset=0&include_obsolete=false` | `EntryListResponse`; limit 1-500; **excludes obsolete by default** |
-| `GET /api/entries/{id}` | `PsiModEntry`; `46` or `MOD:00046`; 404 if unknown, 422 if malformed |
+| `GET /api/entries/{id}` | `PsiModEntry`; `46` or `MOD:00046`; 404 if unknown or malformed |
 | `GET /api/entries/by-name/{name}` | exact name, case-insensitive; 404 if unknown |
 | `GET /api/entries/{id}/parents` | direct `is_a` parents |
 | `GET /api/entries/{id}/children` | direct `is_a` children |
@@ -110,23 +112,24 @@ protection off) because Vercel fires no ASGI lifespan events and
 `psimodpy.server.mcp` exists for inspection and tests.
 
 Tools (return pydantic models, so clients get `structuredContent` + `outputSchema`):
-`get_by_id(id)`, `get_by_name(name)`, `search(query, limit=25)` (summaries),
+`get_by_id(id)`, `get_by_name(name)`, `search(query, limit=25)` (summaries; query min length 1, limit 1-500),
 `get_parents(id)`, `get_children(id)`, `get_by_origin(aa)`.
 
 ## Public API
 
 From `psimodpy/__init__.py` (`__all__`):
 
-- Loading: `load(*, include_obsolete=True)`, `load_from(path)`, `parse_obo(path)`,
-  `download_obo(dest=None, *, force=False)`.
+- Loading: `load(source=None, *, refresh=False, include_obsolete=True)`, `parse_obo(path)`,
+  `download(dest=None, *, force=False)`; deprecated `load_from(path)`, `download_obo`.
+- Errors: `PsimodError`, `PsimodParseError`.
 - Writing: `write_tsv(entries, path, *, delimiter="\t")`,
   `write_obo(entries, path, *, header_lines=())`.
 - Database: `PsiModDatabase` with `db[id]` (KeyError), `get_by_id`, `get_by_name`,
   `search`, `get_by_origin`, `get_parents`, `get_children`, `get_related(entry, rel_type)`,
   `filter(*, include_obsolete=False, slim_only=False)`, `write_tsv`, `write_obo`,
   `header_lines`, `len()`, iteration.
-- Models: `PsiModEntry` (computed `dict_diff_formula`, `dict_formula`,
-  `proforma_diff_formula`), `Synonym`, `Relationship`, `Crosslink`.
+- Models: `PsiModEntry` (computed `dict_composition`, `dict_formula`, `proforma_formula`;
+  deprecated `dict_diff_formula`, `proforma_diff_formula`), `Synonym`, `Relationship`, `Crosslink`.
 - Enums: `AminoAcid`, `SynonymType`, `RelationshipType`, `TermSpec`, `Source`.
 - `__version__`.
 
@@ -145,23 +148,27 @@ From `psimodpy/__init__.py` (`__all__`):
 
 ## Gotchas
 
-- IDs are stored as `int`. `get_by_id` accepts `46`, `"46"` or `"MOD:00046"`, but a
-  non-numeric string (`"foo"`) raises `ValueError`. The server maps that to HTTP 422
-  (`/api/entries/{id}`, `/parents`, `/children`) and to an MCP tool error.
+- IDs are stored as `int`. `get_by_id` accepts `46`, `"46"` or `"MOD:00046"`; a
+  malformed id (`"foo"`, `""`, a bool) returns `None`. The server answers HTTP 404
+  (`/api/entries/{id}`, `/parents`, `/children`) and MCP `null` / `[]`.
+- Duplicate ids raise `PsimodError`. Duplicate names (PSI-MOD has two: desmosine,
+  L-methionine (R)-sulfoxide): the first non-obsolete entry wins `get_by_name`.
 - `load()` includes obsolete terms (2116); `filter()` and `GET /api/entries` exclude
   them by default (1996). Obsolete terms carry `xref_remap` (replacement id).
 - `get_by_origin` is exact and case-sensitive on single-letter codes. Crosslinks
   (`Crosslink(sites=("C", "C"))`) are indexed under each site; `"X"` means any residue.
 - PSI-MOD formulas are space-separated with isotopes as `(13)C`, e.g.
-  `"C 0 H 1 N 0 O 3 P 1"`; zero counts are kept in `dict_*_formula` and dropped in the
-  Hill string.
+  `"C 0 H 1 N 0 O 3 P 1"`; zero counts are dropped from `dict_composition`,
+  `dict_formula` and the ProForma string.
 - `Source.ARTIFACTUAL` exists because four OBO entries use that spelling.
-- `definition_ref` is the raw bracketed citation string (`"[PubMed:..., RESID:...]"`);
-  the server splits it into `references`.
+- `definition_ref` is the citation list without brackets (`"PubMed:..., RESID:..."`,
+  default `""`); the OBO writer adds the brackets back, the server splits it into `references`.
+- Unknown upstream enum values (synonym type, relationship type, TermSpec, Source) are
+  kept as plain strings with a `UserWarning`, so a new PSI-MOD release still loads.
 - `/api/health` reports `psimodpy.__version__`, not installed package metadata.
 - The server parses the OBO once at import and passes that database to
   `dashboard_entries(db)`; keep it that way, Vercel `maxDuration` is 10 s.
-- `download_obo()` does not replace the bundled data; pass its path to `load_from()`.
+- `download()` does not replace the bundled data; pass its path to `load()` or use `load(refresh=True)`.
 - `just format` rewrites files; CI only checks formatting.
 - Vercel: without `installCommand` the runtime installs from `pyproject.toml`/`uv.lock`
   with no extras and every request fails with `ModuleNotFoundError: fastapi`. A

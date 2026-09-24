@@ -67,7 +67,7 @@ def _is_labelled(composition: dict[str, int]) -> bool:
 
 def _cases(db: psimodpy.PsiModDatabase):
     for entry in db:
-        yield entry, "diff", entry.dict_diff_formula, entry.diff_mono, entry.diff_avg
+        yield entry, "diff", entry.dict_composition, entry.diff_mono, entry.diff_avg
         yield entry, "full", entry.dict_formula, entry.mass_mono, entry.mass_avg
 
 
@@ -102,7 +102,7 @@ def test_known_mono_mismatches_still_mismatch(db):
     """If upstream fixes one of these, drop it from KNOWN_MONO_MISMATCHES."""
     for (mod_id, kind), reason in KNOWN_MONO_MISMATCHES.items():
         entry = db[mod_id]
-        composition = entry.dict_diff_formula if kind == "diff" else entry.dict_formula
+        composition = entry.dict_composition if kind == "diff" else entry.dict_formula
         mono = entry.diff_mono if kind == "diff" else entry.mass_mono
         assert composition is not None and mono is not None
         assert abs(_expected_mono(entry, composition) - mono) > MONO_TOL, reason
@@ -144,7 +144,7 @@ def test_known_avg_mismatches_still_mismatch(db):
     """If upstream fixes one of these, drop it from KNOWN_AVG_MISMATCHES."""
     for (mod_id, kind), reason in KNOWN_AVG_MISMATCHES.items():
         entry = db[mod_id]
-        composition = entry.dict_diff_formula if kind == "diff" else entry.dict_formula
+        composition = entry.dict_composition if kind == "diff" else entry.dict_formula
         avg = entry.diff_avg if kind == "diff" else entry.mass_avg
         assert composition is not None and avg is not None
         assert abs(_mass(composition, "avg") - avg) > AVG_ABS_TOL, reason
@@ -161,5 +161,5 @@ def test_known_avg_mismatches_still_mismatch(db):
 )
 def test_spot_values(db, mod_id, mono):
     entry = db[mod_id]
-    assert entry.dict_diff_formula is not None
-    assert _expected_mono(entry, entry.dict_diff_formula) == pytest.approx(mono, abs=MONO_TOL)
+    assert entry.dict_composition is not None
+    assert _expected_mono(entry, entry.dict_composition) == pytest.approx(mono, abs=MONO_TOL)

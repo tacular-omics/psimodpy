@@ -183,20 +183,46 @@ def test_rest_search_returns_summaries() -> None:
     "path",
     ["/api/entries/foo", "/api/entries/foo/parents", "/api/entries/foo/children", "/api/entries/MOD:abc"],
 )
-def test_rest_malformed_id_returns_422(path: str) -> None:
+def test_rest_malformed_id_returns_404(path: str) -> None:
     client = TestClient(app, raise_server_exceptions=False)
     r = client.get(path)
-    assert r.status_code == 422
-    assert "Invalid PSI-MOD id" in r.json()["detail"]
+    assert r.status_code == 404
+    assert "No entry" in r.json()["detail"]
 
 
-@pytest.mark.parametrize("tool", ["get_by_id", "get_parents", "get_children"])
-def test_mcp_malformed_id_returns_tool_error(mcp_client: TestClient, tool: str) -> None:
+@pytest.mark.parametrize(("tool", "expected"), [("get_by_id", None), ("get_parents", []), ("get_children", [])])
+def test_mcp_malformed_id_returns_empty_result(mcp_client: TestClient, tool: str, expected: object) -> None:
     _mcp(mcp_client, "initialize", _INIT_PARAMS)
     resp = _mcp(mcp_client, "tools/call", {"name": tool, "arguments": {"id": "foo"}}, req_id=2)
     result = resp["result"]
-    assert result["isError"] is True
-    assert "Invalid PSI-MOD id" in result["content"][0]["text"]
+    assert not result.get("isError")
+    assert result["structuredContent"] == {"result": expected}
+
+
+@pytest.mark.parametrize("arguments", [{"query": ""}, {"query": "phospho", "limit": 0}, {"query": "a", "limit": 501}])
+def test_mcp_search_rejects_out_of_range_arguments(mcp_client: TestClient, arguments: dict) -> None:
+    _mcp(mcp_client, "initialize", _INIT_PARAMS)
+    resp = _mcp(mcp_client, "tools/call", {"name": "search", "arguments": arguments}, req_id=2)
+    assert resp["result"]["isError"] is True
+
+
+def test_mcp_search_schema_is_bounded() -> None:
+    import asyncio
+
+    from psimodpy.server.app import mcp
+
+    tools = {t.name: t for t in asyncio.run(mcp.list_tools())}
+    props = tools["search"].input_schema["properties"]
+    assert props["query"]["minLength"] == 1
+    assert props["limit"]["minimum"] == 1
+    assert props["limit"]["maximum"] == 500
+
+
+def test_rest_entry_uses_1_0_formula_names() -> None:
+    body = TestClient(app).get("/api/entries/46").json()
+    assert body["proforma_formula"] == "HO3P"
+    assert body["dict_composition"] == {"H": 1, "O": 3, "P": 1}
+    assert body["is_a"]
 
 
 def test_health_reports_dunder_version(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -225,3 +251,10 @@ def test_server_import_parses_obo_once() -> None:
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip().splitlines()[-1] == "1"
+
+
+def test_health_is_a_pydantic_model() -> None:
+    from psimodpy.server.app import health
+    from psimodpy.server.models import HealthResponse
+
+    assert isinstance(health(), HealthResponse)

@@ -21,6 +21,6 @@ def test_get_by_id_plain_string(db):
     assert entry.id == 1
 
 
-def test_load_from_nonexistent_raises():
+def test_load_nonexistent_raises():
     with pytest.raises(FileNotFoundError):
-        psimodpy.load_from("/nonexistent/path.obo")
+        psimodpy.load("/nonexistent/path.obo")

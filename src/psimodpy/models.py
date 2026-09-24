@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -97,7 +98,8 @@ class Synonym:
     """A typed synonym for a PSI-MOD entry."""
 
     value: str
-    type: SynonymType
+    type: SynonymType | str
+    """A :class:`SynonymType`, or the raw string for a type this version does not know."""
     scope: str = "EXACT"
 
 
@@ -105,7 +107,8 @@ class Synonym:
 class Relationship:
     """A directed relationship from a PSI-MOD entry to another entry."""
 
-    type: RelationshipType
+    type: RelationshipType | str
+    """A :class:`RelationshipType`, or the raw string for a type this version does not know."""
     target_id: int
 
 
@@ -153,11 +156,11 @@ class PsiModEntry:
     """Residue origin. Single residues are :class:`AminoAcid`; multi-residue
     crosslinks or MOD-referenced origins are :class:`Crosslink`."""
 
-    term_spec: TermSpec | None
-    """Positional specificity (xref: TermSpec)."""
+    term_spec: TermSpec | str | None
+    """Positional specificity (xref: TermSpec); the raw string if the value is not a known TermSpec."""
 
-    source: Source | None
-    """Modification source classification (xref: Source)."""
+    source: Source | str | None
+    """Modification source classification (xref: Source); the raw string if not a known Source."""
 
     formal_charge: int | None
     """Net formal charge as a signed integer, e.g. ``1``, ``-2`` (xref: FormalCharge)."""
@@ -181,14 +184,15 @@ class PsiModEntry:
     is_obsolete: bool
     """True if this entry is marked obsolete in the OBO file."""
 
-    definition_ref: str = "[]"
-    """Citation block from the def: line, e.g. '[PubMed:18688235]'."""
+    definition_ref: str = ""
+    """Citation list from the def: line without brackets, e.g. 'PubMed:18688235, RESID:AA0037'."""
 
     @property
-    def dict_diff_formula(self) -> dict[str, int] | None:
+    def dict_composition(self) -> dict[str, int] | None:
         """Parse diff_formula into {element: count}. Returns None if no formula.
 
-        Isotopes are keyed like tacular and peptacular ("13C"), not like the OBO ("(13)C").
+        Zero counts are dropped; negative counts are kept. Isotopes are keyed like
+        tacular and peptacular ("13C"), not like the OBO ("(13)C").
         """
         if self.diff_formula is None:
             return None
@@ -198,7 +202,7 @@ class PsiModEntry:
 
     @property
     def dict_formula(self) -> dict[str, int] | None:
-        """Parse formula into {element: count}; isotopes keyed "13C". None if no formula."""
+        """Parse formula into {element: count}; zero counts dropped, isotopes keyed "13C". None if no formula."""
         if self.formula is None:
             return None
         from psimodpy._formula import parse_formula, to_isotope_keys
@@ -206,14 +210,26 @@ class PsiModEntry:
         return to_isotope_keys(parse_formula(self.formula))
 
     @property
-    def proforma_diff_formula(self) -> str | None:
-        """ProForma 2.0 formula for diff_formula in Hill order, e.g. 'C2H2O' or '[13C6]H2'.
+    def proforma_formula(self) -> str | None:
+        """ProForma 2.0 formula for diff_formula in Hill order, e.g. 'HO3P' or '[13C3]H4O'.
 
-        Isotopes use ProForma bracket syntax ("[2H8]"). Returns None if no formula.
+        No spaces; isotopes use ProForma bracket syntax ("[2H8]"). Returns None if no formula.
         """
-        composition = self.dict_diff_formula
+        composition = self.dict_composition
         if composition is None:
             return None
         from psimodpy._formula import formula_to_proforma
 
         return formula_to_proforma(composition)
+
+    @property
+    def dict_diff_formula(self) -> dict[str, int] | None:
+        """Deprecated alias of :attr:`dict_composition`; will be removed in 2.0."""
+        warnings.warn("dict_diff_formula is deprecated; use dict_composition", DeprecationWarning, stacklevel=2)
+        return self.dict_composition
+
+    @property
+    def proforma_diff_formula(self) -> str | None:
+        """Deprecated alias of :attr:`proforma_formula`; will be removed in 2.0."""
+        warnings.warn("proforma_diff_formula is deprecated; use proforma_formula", DeprecationWarning, stacklevel=2)
+        return self.proforma_formula

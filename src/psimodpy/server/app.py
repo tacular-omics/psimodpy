@@ -4,18 +4,20 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 from mcp.server import MCPServer
-from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
+from pydantic import Field
 
 import psimodpy
 from psimodpy.models import PsiModEntry as _Entry
 from psimodpy.server.dashboard import dashboard_entries
 from psimodpy.server.models import (
     EntryListResponse,
+    HealthResponse,
     OriginResponse,
     PsiModEntry,
     PsiModSummary,
@@ -26,18 +28,6 @@ from psimodpy.server.models import (
 
 _db = psimodpy.load()
 _PACKAGE = "psimodpy"
-
-
-class _InvalidIdError(ValueError):
-    """Raised when an ID is neither an integer nor ``MOD:NNNNN``."""
-
-
-def _lookup(id: str) -> _Entry | None:
-    """Return the entry for ``id`` or None; raise _InvalidIdError if ``id`` is malformed."""
-    try:
-        return _db.get_by_id(id)
-    except ValueError:
-        raise _InvalidIdError(f"Invalid PSI-MOD id {id!r}: expected an integer or 'MOD:NNNNN'") from None
 
 
 # Render dashboard payload once at import time, reusing the database parsed above.
@@ -67,13 +57,6 @@ _DASHBOARD_HTML = _load_dashboard_html()
 # ---------------------------------------------------------------------------
 
 
-def _tool_lookup(id: str) -> _Entry | None:
-    try:
-        return _lookup(id)
-    except _InvalidIdError as exc:
-        raise ToolError(str(exc)) from None
-
-
 def _build_mcp() -> MCPServer:
     mcp = MCPServer(
         _PACKAGE,
@@ -82,8 +65,8 @@ def _build_mcp() -> MCPServer:
 
     @mcp.tool()
     def get_by_id(id: str) -> PsiModEntry | None:
-        """Look up a PSI-MOD entry by ID. Accepts ``"46"`` or ``"MOD:00046"``."""
-        entry = _tool_lookup(id)
+        """Look up a PSI-MOD entry by ID. Accepts ``"46"`` or ``"MOD:00046"``; null if unknown or malformed."""
+        entry = _db.get_by_id(id)
         return to_psimod_entry(entry) if entry else None
 
     @mcp.tool()
@@ -93,18 +76,20 @@ def _build_mcp() -> MCPServer:
         return to_psimod_entry(entry) if entry else None
 
     @mcp.tool()
-    def search(query: str, limit: int = 25) -> list[PsiModSummary]:
+    def search(
+        query: Annotated[str, Field(min_length=1)], limit: Annotated[int, Field(ge=1, le=500)] = 25
+    ) -> list[PsiModSummary]:
         """Full-text search over names, definitions, and synonyms.
 
-        Returns up to ``limit`` lightweight summaries.  Call ``get_by_id`` on
-        any returned ``id`` to fetch the full entry.
+        ``query`` must be non-empty. Returns up to ``limit`` (1-500) lightweight
+        summaries.  Call ``get_by_id`` on any returned ``id`` to fetch the full entry.
         """
         return [to_psimod_summary(e) for e in _db.search(query)[:limit]]
 
     @mcp.tool()
     def get_parents(id: str) -> list[PsiModEntry]:
         """Return direct ``is_a`` parents of the given entry."""
-        entry = _tool_lookup(id)
+        entry = _db.get_by_id(id)
         if entry is None:
             return []
         return [to_psimod_entry(p) for p in _db.get_parents(entry)]
@@ -112,7 +97,7 @@ def _build_mcp() -> MCPServer:
     @mcp.tool()
     def get_children(id: str) -> list[PsiModEntry]:
         """Return entries with the given entry as a direct ``is_a`` parent."""
-        entry = _tool_lookup(id)
+        entry = _db.get_by_id(id)
         if entry is None:
             return []
         return [to_psimod_entry(c) for c in _db.get_children(entry)]
@@ -155,10 +140,8 @@ app = FastAPI(
 
 
 def _rest_lookup(id: str) -> _Entry:
-    try:
-        entry = _lookup(id)
-    except _InvalidIdError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from None
+    """Return the entry for ``id``; HTTP 404 if it is unknown or not a PSI-MOD id."""
+    entry = _db.get_by_id(id)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"No entry for id={id!r}")
     return entry
@@ -180,14 +163,9 @@ def dashboard_data() -> Response:
     )
 
 
-@app.get("/api/health")
-def health() -> dict:
-    return {
-        "ok": True,
-        "package": _PACKAGE,
-        "version": psimodpy.__version__,
-        "count": len(_db),
-    }
+@app.get("/api/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    return HealthResponse(ok=True, package=_PACKAGE, version=psimodpy.__version__, count=len(_db))
 
 
 @app.get("/api/entries", response_model=EntryListResponse)

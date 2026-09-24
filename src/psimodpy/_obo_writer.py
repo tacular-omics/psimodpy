@@ -51,7 +51,7 @@ def _write_entry(fh, entry: PsiModEntry, names: dict[int, str]) -> None:
     fh.write("[Term]\n")
     fh.write(f"id: MOD:{entry.id:05d}\n")
     fh.write(f"name: {entry.name}\n")
-    fh.write(f'def: "{entry.definition}" {entry.definition_ref}\n')
+    fh.write(f'def: "{entry.definition}" [{entry.definition_ref}]\n')
     if entry.in_slim_subset:
         fh.write("subset: PSI-MOD-slim\n")
     for syn in entry.synonyms:

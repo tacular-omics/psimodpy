@@ -32,6 +32,8 @@ def _split_isotope(element: str) -> tuple[int, str]:
 def to_isotope_keys(composition: dict[str, int]) -> dict[str, int]:
     """Rename PSI-MOD isotope keys to the tacular/peptacular style: "(13)C" -> "13C".
 
+    Zero counts are dropped (after merging keys that name the same isotope).
+
     Examples:
         >>> to_isotope_keys({"(13)C": 3, "H": 4, "O": 1})
         {'13C': 3, 'H': 4, 'O': 1}
@@ -41,7 +43,7 @@ def to_isotope_keys(composition: dict[str, int]) -> dict[str, int]:
         iso, symbol = _split_isotope(element)
         key = f"{iso}{symbol}" if iso else element
         result[key] = result.get(key, 0) + count
-    return result
+    return {key: count for key, count in result.items() if count != 0}
 
 
 def parse_formula(formula: str) -> dict[str, int]:

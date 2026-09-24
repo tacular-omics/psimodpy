@@ -43,8 +43,8 @@ def print_entry(entry: psimodpy.PsiModEntry) -> None:
         print(f"  diff_avg      : {entry.diff_avg:+.4f} Da")
     if entry.diff_formula is not None:
         print(f"  diff_formula  : {entry.diff_formula}")
-        comp = entry.dict_diff_formula
-        pf = entry.proforma_diff_formula
+        comp = entry.dict_composition
+        pf = entry.proforma_formula
         if comp:
             nonzero = {k: v for k, v in comp.items() if v != 0}
             print(f"  diff_comp     : {nonzero}")

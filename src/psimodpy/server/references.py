@@ -17,7 +17,8 @@ _URL_PREFIXES = ("URL", "URI", "http", "https")
 def parse_definition_ref(raw: str | None) -> list[Reference]:
     """Split a PSI-MOD definition_ref blob into typed Reference objects.
 
-    The input may be empty, ``"[]"``, or a bracketed list.  Tokens of the
+    The input may be empty, ``"[]"``, a bracketed list, or (as stored on
+    ``PsiModEntry.definition_ref`` since 1.0) the bare list without brackets.  Tokens of the
     form ``URL:...`` or ``URI:...`` become ``Reference(type=<prefix>,
     value=<rest>)`` since their suffix is not a stable accession; everything
     else becomes ``Reference(type=<prefix>, accession=<rest>)``.  Accession
