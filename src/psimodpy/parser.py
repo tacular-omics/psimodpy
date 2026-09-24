@@ -30,7 +30,7 @@ _DEF_RE = re.compile(r'^def:\s+"(.*?)"\s+\[([^\]]*)\]')
 _SYNONYM_RE = re.compile(r'^synonym:\s+"(.+?)"\s+(\w+)\s+(\S+)\s+\[\]')
 _IS_A_RE = re.compile(r"^is_a:\s+MOD:(\d+)")
 _RELATIONSHIP_RE = re.compile(r"^relationship:\s+(\S+)\s+MOD:(\d+)")
-_XREF_RE = re.compile(r'^xref:\s+([^:]+):\s+"(.+?)"$')
+_XREF_RE = re.compile(r'^xref:\s+([^:]+):\s+"(.*?)"$')
 _XREF_UNIPROT_RE = re.compile(r"^xref:\s+(uniprot\.ptm):(\S+)$")
 _SUBSET_SLIM_RE = re.compile(r"^subset:\s+PSI-MOD-slim")
 
@@ -185,15 +185,16 @@ def _build_entry(block: list[tuple[int, str]], path: Path, issues: _Issues) -> P
         elif line == "is_obsolete: true":
             is_obsolete = True
         elif line.startswith("xref: "):
-            # Try uniprot.ptm special case first (no space before value)
+            # Pre-1.039 uniprot.ptm form, unquoted with no space: "xref: uniprot.ptm:PTM-0369"
             m = _XREF_UNIPROT_RE.match(line)
             if m:
                 xref_uniprot_ptm = m.group(2)
                 continue
-            # Standard xref: KEY: "VALUE"
+            # Standard xref: KEY: "VALUE"; an empty value ("") means no value, like an absent xref
             m = _XREF_RE.match(line)
             if m:
-                xrefs[m.group(1)] = (m.group(2), lineno)
+                if m.group(2):
+                    xrefs[m.group(1)] = (m.group(2), lineno)
             else:
                 issues.line("xref:", lineno, line)
 
@@ -244,7 +245,7 @@ def _build_entry(block: list[tuple[int, str]], path: Path, issues: _Issues) -> P
             else None
         ),
         xref_unimod=raw("Unimod"),
-        xref_uniprot_ptm=xref_uniprot_ptm,
+        xref_uniprot_ptm=raw("uniprot.ptm") or xref_uniprot_ptm,
         xref_gnome=raw("GNOme"),
         xref_remap=_convert(_parse_mod_id, xrefs["Remap"][0], "Remap", where("Remap")) if "Remap" in xrefs else None,
         in_slim_subset=in_slim_subset,

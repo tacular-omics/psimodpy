@@ -62,8 +62,9 @@ len(db.get_by_origin("S"))                      # 154 (every mod on serine)
 
 With no `source`, load the bundled `PSI-MOD.obo` shipped inside the wheel. Pass a
 path to load any PSI-MOD OBO file, or `refresh=True` to download the latest
-release (`download(force=True)`) and load that. Obsolete terms are included by
-default (2116 terms); `include_obsolete=False` gives 1996 and keeps `header_lines`.
+release (`download(force=True)`) and load that (passing both `source` and
+`refresh=True` raises `ValueError`). Obsolete terms are included by
+default (2116 terms); `include_obsolete=False` gives 1971 and keeps `header_lines`.
 Obsolete terms are useful because they carry `xref_remap`, the id of the
 replacement term. `load_from(path)` is a deprecated alias of `load(path)`.
 
@@ -100,8 +101,8 @@ In-memory index over `PsiModEntry` objects.
 | `PsiModDatabase(entries, *, header_lines=())` | build from any iterable of entries; `PsimodError` on a duplicate id |
 | `db[id]` | entry by id; raises `KeyError` if absent |
 | `get_by_id(id: int \| str) -> PsiModEntry \| None` | accepts `46`, `"46"`, `"MOD:00046"` (prefix case-insensitive) |
-| `get_by_name(name: str) -> PsiModEntry \| None` | exact name, case-insensitive; for a duplicate name the first non-obsolete entry wins |
-| `search(query: str) -> list[PsiModEntry]` | case-insensitive substring in name, definition or any synonym; `""` returns all |
+| `get_by_name(name: str) -> PsiModEntry \| None` | exact name, case-insensitive; for a duplicate name the first non-obsolete entry wins; a non-string returns `None` |
+| `search(query: str) -> list[PsiModEntry]` | case-insensitive substring in name, definition or any synonym; `""` returns all, a non-string `[]` |
 | `get_by_origin(aa: str) -> list[PsiModEntry]` | entries whose origin includes this one-letter code (case-sensitive) |
 | `get_parents(entry) -> list[PsiModEntry]` | direct `is_a` parents |
 | `get_children(entry) -> list[PsiModEntry]` | entries with `entry` as a direct `is_a` parent |
@@ -121,8 +122,8 @@ Notes:
 - `filter()` defaults to `include_obsolete=False`, the opposite of `load()`.
 
 ```python
-db.filter()                                   # 1996 non-obsolete
-db.filter(slim_only=True)                     # 811 PSI-MOD-slim, non-obsolete
+db.filter()                                   # 1971 non-obsolete
+db.filter(slim_only=True)                     # 788 PSI-MOD-slim, non-obsolete
 db.filter(include_obsolete=True)              # 2116
 
 from psimodpy import RelationshipType
@@ -173,6 +174,7 @@ their fields are) or `StrEnum`s (compare equal to their string value).
 
 Computed properties:
 
+- `accession -> str`: `"MOD:00046"`, the same value as the REST/MCP `accession` field.
 - `dict_composition -> dict[str, int] | None`: `diff_formula` parsed; zero counts
   dropped, negative counts kept; isotopes keyed like tacular, `"13C"` (the OBO writes `(13)C`).
 - `dict_formula -> dict[str, int] | None`: same for `formula`.
@@ -337,8 +339,8 @@ field plus:
 - `references`: `definition_ref` split into `[{type, accession, value}]`, e.g.
   `{"type": "PubMed", "accession": "12923550", "value": null}`; `URL:`/`URI:`
   tokens go into `value`, tokens without a colon become `{"type": "Misc", "value": ...}`.
-- `dict_composition`, `dict_formula`, `proforma_formula` (plus deprecated duplicates
-  `dict_diff_formula`, `proforma_diff_formula`, removed in 2.0).
+- `dict_composition`, `dict_formula`, `proforma_formula` (the pre-1.0 duplicates
+  `dict_diff_formula` and `proforma_diff_formula` are no longer sent).
 - `origin`: `{"type": "amino_acid", "code": "S"}` or
   `{"type": "crosslink", "sites": ["C", "C"]}` or `null`.
 - enums as plain strings.

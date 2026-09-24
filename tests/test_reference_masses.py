@@ -19,7 +19,6 @@ from psimodpy import PsiModEntry
 
 _TABLE = json.loads((Path(__file__).parent / "reference" / "element_masses.json").read_text())
 _ELEMENTS: dict[str, dict[str, float]] = _TABLE["elements"]
-_ELECTRON: float = _TABLE["electron_mass"]
 _KEY_RE = re.compile(r"^(\d+)?([A-Z][a-z]?)$")
 
 # Upstream values are rounded to 5-6 decimals, and PSI-MOD's atomic mass table is not
@@ -31,25 +30,12 @@ AVG_ABS_TOL = 0.05
 AVG_REL_TOL = 1e-4
 
 # (MOD id, which formula) -> reason the stated mass cannot be reproduced from it.
-KNOWN_MONO_MISMATCHES: dict[tuple[int, str], str] = {
-    (523, "full"): "Formula is C35H57N3O26 (935.32) but MassMono is 960.35: upstream data error",
-    (577, "full"): "Formula is for one crosslinked residue, MassMono for the penta-lysine: upstream data error",
-    (2105, "diff"): "DiffFormula adds O1 but DiffMono is 2 x O (31.99): upstream data error",
-    (1982, "diff"): "FormalCharge 1+ but the electron is added, not removed: upstream sign error",
-    (1982, "full"): "FormalCharge 1+ but the electron is added, not removed: upstream sign error",
-}
+# Empty since PSI-MOD 1.039.0, which fixed MOD:00523, MOD:00577, MOD:01982 and MOD:02105.
+KNOWN_MONO_MISMATCHES: dict[tuple[int, str], str] = {}
 
 # Unlabelled entries whose average mass is not the formula's average mass.
-KNOWN_AVG_MISMATCHES: dict[tuple[int, str], str] = {
-    **{
-        key: "average mass equals the monoisotopic mass: upstream data error"
-        for key in [(472, "full"), (2100, "full"), (2101, "full"), (2102, "full")]
-    },
-    **{
-        key: "average mass ~0.06 Da high (older atomic weights?): upstream"
-        for key in [(2019, "full"), (2022, "diff"), (2022, "full"), (2023, "diff"), (2024, "diff")]
-    },
-}
+# Empty since PSI-MOD 1.039.0, which fixed MOD:00472, MOD:02019 and MOD:02022-02024, MOD:02100-02102.
+KNOWN_AVG_MISMATCHES: dict[tuple[int, str], str] = {}
 
 
 def _mass(composition: dict[str, int], kind: str) -> float:
@@ -77,8 +63,9 @@ def cases(db):
 
 
 def _expected_mono(entry: PsiModEntry, composition: dict[str, int]) -> float:
-    # PSI-MOD includes the electrons for charged entries (e.g. Fe-S clusters, FormalCharge "2-").
-    return _mass(composition, "mono") - (entry.formal_charge or 0) * _ELECTRON
+    # Since PSI-MOD 1.039.0 the masses of charged entries (FormalCharge "1+", "2-", ...) are
+    # the neutral formula masses; earlier releases added or removed the electrons.
+    return _mass(composition, "mono")
 
 
 def test_every_formula_token_is_a_known_element(cases):

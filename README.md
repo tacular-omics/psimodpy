@@ -123,7 +123,7 @@ claude mcp add psi-mod http://localhost:8000/mcp --transport http
 `relationships`, `origin`, `diff_mono`, `diff_avg`, `diff_formula`, `mass_mono`, `mass_avg`,
 `formula`, `term_spec`, `source`, `formal_charge`, `xref_unimod`, `xref_uniprot_ptm`,
 `xref_gnome`, `xref_remap`, `in_slim_subset`, `is_obsolete`, plus computed
-`dict_composition`, `dict_formula`, `proforma_formula`.
+`accession` (`"MOD:00046"`), `dict_composition`, `dict_formula`, `proforma_formula`.
 
 **Errors**: `PsimodError`, and `PsimodParseError` (also a `ValueError`) for malformed OBO input.
 `get_by_id` returns `None` for an unknown or malformed id; only `db[key]` raises (`KeyError`).

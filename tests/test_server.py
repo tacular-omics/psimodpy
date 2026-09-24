@@ -225,6 +225,17 @@ def test_rest_entry_uses_1_0_formula_names() -> None:
     assert body["is_a"]
 
 
+def test_deprecated_formula_wire_fields_removed(mcp_client: TestClient) -> None:
+    dropped = {"proforma_diff_formula", "dict_diff_formula"}
+    assert dropped.isdisjoint(PsiModEntry.model_fields)
+    assert dropped.isdisjoint(TestClient(app).get("/api/entries/46").json())
+    _mcp(mcp_client, "initialize", _INIT_PARAMS)
+    resp = _mcp(mcp_client, "tools/call", {"name": "get_by_id", "arguments": {"id": "46"}}, req_id=2)
+    entry = resp["result"]["structuredContent"]["result"]
+    assert entry["accession"] == "MOD:00046"
+    assert dropped.isdisjoint(entry)
+
+
 def test_health_reports_dunder_version(monkeypatch: pytest.MonkeyPatch) -> None:
     import psimodpy
 

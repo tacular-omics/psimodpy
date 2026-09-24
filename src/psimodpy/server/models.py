@@ -64,12 +64,6 @@ class PsiModEntry(BaseModel):
     diff_formula: str | None
     proforma_formula: str | None
     dict_composition: dict[str, int] | None
-    proforma_diff_formula: str | None = Field(
-        None, deprecated=True, description="Deprecated duplicate of proforma_formula; removed in 2.0."
-    )
-    dict_diff_formula: dict[str, int] | None = Field(
-        None, deprecated=True, description="Deprecated duplicate of dict_composition; removed in 2.0."
-    )
     mass_mono: float | None
     mass_avg: float | None
     formula: str | None
@@ -152,7 +146,7 @@ def to_psimod_entry(entry: _PsiModEntry) -> PsiModEntry:
 
     return PsiModEntry(
         id=entry.id,
-        accession=f"MOD:{entry.id:05d}",
+        accession=entry.accession,
         name=entry.name,
         definition=entry.definition or None,
         references=parse_definition_ref(entry.definition_ref),
@@ -165,8 +159,6 @@ def to_psimod_entry(entry: _PsiModEntry) -> PsiModEntry:
         diff_formula=entry.diff_formula,
         proforma_formula=entry.proforma_formula,
         dict_composition=entry.dict_composition,
-        proforma_diff_formula=entry.proforma_formula,
-        dict_diff_formula=entry.dict_composition,
         mass_mono=entry.mass_mono,
         mass_avg=entry.mass_avg,
         formula=entry.formula,
@@ -187,7 +179,7 @@ def to_psimod_entry(entry: _PsiModEntry) -> PsiModEntry:
 def to_psimod_summary(entry: _PsiModEntry) -> PsiModSummary:
     return PsiModSummary(
         id=entry.id,
-        accession=f"MOD:{entry.id:05d}",
+        accession=entry.accession,
         name=entry.name,
         mass_mono=entry.mass_mono,
         is_obsolete=entry.is_obsolete,

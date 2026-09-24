@@ -12,7 +12,7 @@ def test_total_term_count(db):
 
 def test_obsolete_count(db):
     obsolete = [e for e in db if e.is_obsolete]
-    assert len(obsolete) == 120
+    assert len(obsolete) == 145
 
 
 def test_slim_count(db):
@@ -131,8 +131,8 @@ def test_mass_mono_float(db):
 
 
 def test_none_formula_sentinel(db):
-    """MOD:00436 (first GNOme entry) has Formula: 'none' → formula is None."""
-    entry = db.get_by_id(436)
+    """MOD:00434 has Formula: 'none' → formula is None."""
+    entry = db.get_by_id(434)
     assert entry is not None
     assert entry.formula is None
 
