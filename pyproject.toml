@@ -65,6 +65,7 @@ dev = [
     "pytest>=9.0.2",
     "httpx>=0.27",
     "hypothesis>=6.100",
+    "pytest-cov>=7.1.0",
     "ruff>=0.16.8",
     "ty>=0.0.83",
 ]
@@ -85,3 +86,11 @@ select = [
     "B",   # flake8-bugbear
     "UP",  # pyupgrade
 ]
+
+[tool.coverage.run]
+source = ["src/psimodpy"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
