@@ -134,7 +134,8 @@ include_obsolete=False)` returns `(entry, delta - diff_mono)` pairs within `tole
 `relationships`, `origin`, `diff_mono`, `diff_avg`, `diff_formula`, `mass_mono`, `mass_avg`,
 `formula`, `term_spec`, `source`, `formal_charge`, `xref_unimod`, `xref_uniprot_ptm`,
 `xref_gnome`, `xref_remap`, `in_slim_subset`, `is_obsolete`, plus computed
-`accession` (`"MOD:00046"`), `dict_composition`, `dict_formula`, `proforma_formula`.
+`accession` (`"MOD:00046"`), `dict_composition`, `dict_formula`, `proforma_formula`, and
+`get_mass(*, monoisotopic=True)` (`diff_mono`, or `diff_avg` with `monoisotopic=False`).
 
 **Errors**: `PsimodError`, `PsimodParseError` (also a `ValueError`) for malformed OBO input, and
 `PsimodKeyError` (also a `KeyError`) from `db[key]` on a miss. `get_by_id` returns `None` for an
