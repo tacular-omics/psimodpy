@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+Additive only: nothing that worked in 1.0 changes behaviour.
+
+### Added
+
+- `load(cache=True)`: parse the bundled OBO once per process (one database per `include_obsolete` value) and return that same database on later `load(cache=True)` calls. The database is shared by every such caller: do not modify it. Combining `cache=True` with `source` or `refresh=True` raises `ValueError`. The default (`cache=False`) still parses anew on each call.
+- `PsimodKeyError(PsimodError, KeyError)`, exported: `db[key]` raises it on a miss. It is still a `KeyError`, not a `ValueError` (so `except KeyError` and `db.get` work as before) and `args[0]` is still the key.
+
+### Changed
+
+- `search()` is several times faster: each entry's lowercased name, definition and synonyms are joined once when the database is built, so a query is one substring test per entry instead of lowercasing every field on every call. Results and their order are unchanged (tested against the 1.0 algorithm).
+- `import psimodpy` no longer imports `urllib.request` (and with it `http.client`, `ssl`, `email`): it is imported when `download()` runs, saving about 30 ms at import.
+
 ## [1.0.0] (2026-09-23)
 
 First stable release: the public API is now stable and follows semantic versioning.

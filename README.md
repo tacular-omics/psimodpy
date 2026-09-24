@@ -110,7 +110,7 @@ claude mcp add psi-mod http://localhost:8000/mcp --transport http
 
 | Function | Description |
 |----------|-------------|
-| `psimodpy.load(source=None, *, refresh=False, include_obsolete=True)` | Load the bundled PSI-MOD database, an OBO file (`source`), or the latest release (`refresh=True`). |
+| `psimodpy.load(source=None, *, refresh=False, include_obsolete=True, cache=False)` | Load the bundled PSI-MOD database, an OBO file (`source`), or the latest release (`refresh=True`). `cache=True` parses the bundled file once and returns the same (read-only) database on later calls. |
 | `psimodpy.parse_obo(path)` | Parse an OBO file into a database. |
 | `psimodpy.download(dest=None, *, force=False)` | Download the latest OBO file from GitHub. |
 | `psimodpy.write_tsv(entries, path, *, delimiter)` | Write entries to a TSV (or CSV) file. |
@@ -125,8 +125,9 @@ claude mcp add psi-mod http://localhost:8000/mcp --transport http
 `xref_gnome`, `xref_remap`, `in_slim_subset`, `is_obsolete`, plus computed
 `accession` (`"MOD:00046"`), `dict_composition`, `dict_formula`, `proforma_formula`.
 
-**Errors**: `PsimodError`, and `PsimodParseError` (also a `ValueError`) for malformed OBO input.
-`get_by_id` returns `None` for an unknown or malformed id; only `db[key]` raises (`KeyError`).
+**Errors**: `PsimodError`, `PsimodParseError` (also a `ValueError`) for malformed OBO input, and
+`PsimodKeyError` (also a `KeyError`) from `db[key]` on a miss. `get_by_id` returns `None` for an
+unknown or malformed id; only `db[key]` raises.
 
 **Data types**: `AminoAcid`, `Crosslink`, `Synonym` / `SynonymType`, `Relationship` /
 `RelationshipType`, `TermSpec`, `Source`.

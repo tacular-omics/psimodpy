@@ -9,3 +9,7 @@ class PsimodError(Exception):
 
 class PsimodParseError(PsimodError, ValueError):
     """Malformed PSI-MOD OBO input. The message names the line or entry at fault."""
+
+
+class PsimodKeyError(PsimodError, KeyError):
+    """``db[key]`` found no entry. Also a ``KeyError`` (not a ``ValueError``); ``args[0]`` is the key looked up."""

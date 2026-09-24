@@ -58,7 +58,7 @@ len(db.get_by_origin("S"))                      # 154 (every mod on serine)
 
 ## 3. Loading
 
-### `psimodpy.load(source=None, *, refresh=False, include_obsolete=True) -> PsiModDatabase`
+### `psimodpy.load(source=None, *, refresh=False, include_obsolete=True, cache=False) -> PsiModDatabase`
 
 With no `source`, load the bundled `PSI-MOD.obo` shipped inside the wheel. Pass a
 path to load any PSI-MOD OBO file, or `refresh=True` to download the latest
@@ -67,6 +67,12 @@ release (`download(force=True)`) and load that (passing both `source` and
 default (2116 terms); `include_obsolete=False` gives 1971 and keeps `header_lines`.
 Obsolete terms are useful because they carry `xref_remap`, the id of the
 replacement term. `load_from(path)` is a deprecated alias of `load(path)`.
+
+`cache=True` (1.1) parses the bundled file once per process (one database per
+`include_obsolete` value) and returns that same object on every later
+`load(cache=True)` call, so repeated loads cost nothing. Treat the shared database as
+read-only (entries are frozen; do not reassign its attributes). `cache=True` with
+`source` or `refresh=True` raises `ValueError`. Without it every `load()` parses anew.
 
 ### `psimodpy.parse_obo(path: Path | str) -> PsiModDatabase`
 
@@ -99,7 +105,7 @@ In-memory index over `PsiModEntry` objects.
 | member | purpose |
 |---|---|
 | `PsiModDatabase(entries, *, header_lines=())` | build from any iterable of entries; `PsimodError` on a duplicate id |
-| `db[id]` | entry by id; raises `KeyError` if absent |
+| `db[id]` | entry by id, else by name; raises `PsimodKeyError` (a `KeyError` and a `PsimodError`) if absent |
 | `get_by_id(id: int \| str) -> PsiModEntry \| None` | accepts `46`, `"46"`, `"MOD:00046"` (prefix case-insensitive) |
 | `get_by_name(name: str) -> PsiModEntry \| None` | exact name, case-insensitive; for a duplicate name the first non-obsolete entry wins; a non-string returns `None` |
 | `search(query: str) -> list[PsiModEntry]` | case-insensitive substring in name, definition or any synonym; `""` returns all, a non-string `[]` |
