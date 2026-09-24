@@ -8,8 +8,9 @@ import warnings
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
+from psimodpy._mass import WHERE_ANY_C, WHERE_ANY_N, WHERE_ANYWHERE, MassIndex, Slot
 from psimodpy.errors import PsimodError, PsimodKeyError
-from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, RelationshipType
+from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, RelationshipType, TermSpec
 
 # Joins the lowercased search fields of one entry. A query without this character can
 # only match inside one field, so one substring test replaces one test per field.
@@ -55,6 +56,8 @@ class PsiModDatabase:
 
         # (entry, lowercased name/definition/synonyms joined by _SEP), in id order, for search().
         self._haystacks: list[tuple[PsiModEntry, str]] = [(e, _haystack(e)) for e in self._by_id.values()]
+
+        self._mass_index: MassIndex[PsiModEntry] | None = None
 
         # Build reverse is_a index after all entries are loaded
         for entry in self._by_id.values():
@@ -151,6 +154,72 @@ class PsiModDatabase:
             return [e for e in self._by_id.values() if any(q in f for f in _fields(e))]
         return [entry for entry, haystack in self._haystacks if q in haystack]
 
+    def search_mass(
+        self,
+        delta: float,
+        *,
+        tolerance: float = 0.01,
+        unit: str = "da",
+        site: str | None = None,
+        position: str | None = None,
+        include_obsolete: bool = False,
+    ) -> list[tuple[PsiModEntry, float]]:
+        """Return ``(entry, error)`` pairs whose delta mass is within ``tolerance`` of ``delta``.
+
+        The mass is the monoisotopic delta mass, ``diff_mono``.
+        ``error`` is ``delta - mass`` in Da (positive when ``delta`` is heavier). Pairs are
+        sorted by ``abs(error)``, ties in mass order then database order. Entries without
+        ``diff_mono`` are skipped. The mass index is sorted once, on the first call, and
+        searched with bisect.
+
+        Args:
+            delta: Observed monoisotopic mass shift in Da; may be negative.
+            tolerance: Window half-width in Da; both edges are inclusive (with a 1e-9 relative
+                slack for float rounding), and ``0`` means an exact match.
+            unit: Only ``"da"`` (the default), exact and lowercase; anything else raises.
+                ppm is not offered: a ppm window on a delta mass is ill-defined (relative
+                to the delta, or to the modified peptide's mass?). The keyword is kept so
+                the call matches ``tacular.tolerance``; other units may be added later.
+            site: Residue letter(s) the modification sits on, e.g. ``"S"`` or ``"STY"``
+                (any of them), or ``"N-term"`` / ``"C-term"`` for a terminus modification.
+                Several letters mean any of them (``get_by_site`` takes exactly one residue).
+                Matched against ``origin`` (each residue of a crosslink); origin ``X`` matches
+                only ``site="X"``. PSI-MOD has no terminus-only entries, so ``"N-term"`` finds none.
+            position: Where the modified residue was observed: ``"anywhere"`` (inside the
+                sequence), ``"peptide n-term"``, ``"peptide c-term"``, ``"protein n-term"``
+                or ``"protein c-term"`` (case-insensitive). Keeps entries allowed there;
+                a modification allowed anywhere is allowed at a terminus too. PSI-MOD's ``TermSpec`` does not
+                say protein or peptide: an N-term entry matches both N-terminal positions.
+            include_obsolete: If False (default), skip obsolete terms (``is_obsolete``); they
+                duplicate current terms' masses. True keeps them, when the database has them
+                (``load(include_obsolete=False)`` drops them at load time).
+
+        Raises:
+            PsimodError: ``delta`` or ``tolerance`` is not a finite number (or ``tolerance`` < 0),
+                or ``unit``, ``site`` or ``position`` is not one of the values above.
+        """
+        if self._mass_index is None:
+            self._mass_index = MassIndex((e, e.diff_mono, _slots(e)) for e in self._by_id.values())
+        hits = self._mass_index.search(
+            delta, tolerance=tolerance, unit=unit, site=site, position=position, error=PsimodError
+        )
+        if not isinstance(include_obsolete, bool):
+            raise PsimodError(f"include_obsolete must be a bool, got {include_obsolete!r}")
+        return hits if include_obsolete else [hit for hit in hits if not hit[0].is_obsolete]
+
+    def get_by_site(self, site: str) -> list[PsiModEntry]:
+        """Return entries whose origin includes residue ``site`` (case-insensitive).
+
+        Like ``get_by_origin(site.strip().upper())``, named like unimodpy's and
+        uniprotptmpy's ``get_by_site``, but each entry appears once: a crosslink with
+        origin ``"S, S"`` is listed twice by ``get_by_origin("S")`` and once here.
+        A non-string returns ``[]``.
+        Takes exactly one residue; ``search_mass(site=...)`` takes several letters (any of them).
+        """
+        if not isinstance(site, str):
+            return []
+        return list(dict.fromkeys(self.get_by_origin(site.strip().upper())))
+
     def get_by_origin(self, aa: str) -> list[PsiModEntry]:
         """Return all entries whose origin includes the given amino acid code.
 
@@ -216,6 +285,23 @@ class PsiModDatabase:
 def _fields(entry: PsiModEntry) -> list[str]:
     """Return the lowercased name, definition and synonyms of ``entry``: the fields search() looks in."""
     return [entry.name.lower(), entry.definition.lower(), *(s.value.lower() for s in entry.synonyms)]
+
+
+def _slots(entry: PsiModEntry) -> tuple[Slot, ...]:
+    """Where ``entry`` may sit, for search_mass: its origin residues and TermSpec."""
+    if entry.term_spec == TermSpec.N_TERM:
+        where = WHERE_ANY_N
+    elif entry.term_spec == TermSpec.C_TERM:
+        where = WHERE_ANY_C
+    else:
+        where = WHERE_ANYWHERE
+    if isinstance(entry.origin, AminoAcid):
+        sites = frozenset({str(entry.origin)})
+    elif isinstance(entry.origin, Crosslink):
+        sites = frozenset(entry.origin.sites)
+    else:
+        sites = frozenset()
+    return ((sites, where),)
 
 
 def _haystack(entry: PsiModEntry) -> str:
