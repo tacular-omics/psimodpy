@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [1.0.0] (2026-09-23)
+
+First stable release: the public API is now stable and follows semantic versioning.
+
 ### Breaking
 
 Shared 1.0 API with unimodpy and uniprotptmpy. Deprecated names still work and emit `DeprecationWarning`; they will be removed in 2.0.
