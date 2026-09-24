@@ -125,6 +125,10 @@ In-memory index over `PsiModEntry` objects.
 
 `search_mass(delta, *, tolerance=0.01, unit="da", site=None, position=None, include_obsolete=False) -> list[tuple[entry, float]]`: entries whose `diff_mono` (monoisotopic mass difference) is within `tolerance` of `delta`, as `(entry, error)` pairs with `error = delta - mass`, closest first (ties in mass, then file order). `unit` accepts only `"da"` (exact, lowercase): ppm is not offered because a ppm window on a delta mass is ill-defined, and the keyword keeps the call shape of `tacular.tolerance` so units can be added later. Both window edges are inclusive. Entries without a mass are skipped, and so are obsolete terms unless `include_obsolete=True`. `site` is one or more residue letters (`"S"`, `"STY"`, any case; any of them matches, while `get_by_site` takes exactly one) or `"N-term"`/`"C-term"`, matched against the entry's origin residues (`origin`; crosslinks list each residue). `position` is where the residue was observed: `"anywhere"`, `"peptide n-term"`, `"peptide c-term"`, `"protein n-term"`, `"protein c-term"` (case-insensitive; `"Any N-term"`/`"Any C-term"` are aliases for the peptide ones); it is matched against PSI-MOD's N-term/C-term flag (`term_spec`), which does not say protein or peptide: an N-terminal mod matches both `"peptide n-term"` and `"protein n-term"`. Entries with no flag count as anywhere. A modification of the terminus itself matches any residue at that terminus. A sorted mass index is built on the first call, and each search is a bisect. A bad `site`, `position`, `unit`, `delta` or `tolerance` raises `PsimodError`.
 
+### Entry mass (1.1)
+
+`PsiModEntry.get_mass(*, monoisotopic=True) -> float | None`: the mass difference in Da, `diff_mono` (default) or `diff_avg` (`monoisotopic=False`), with the same keyword as tacular 2.0's `get_mass`. The old attributes stay. `search_mass` uses it.
+
 Notes:
 
 - `get_parents`, `get_children` and `get_related` take an **entry**, not an id:

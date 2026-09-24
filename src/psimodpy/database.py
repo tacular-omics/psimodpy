@@ -199,7 +199,7 @@ class PsiModDatabase:
                 or ``unit``, ``site`` or ``position`` is not one of the values above.
         """
         if self._mass_index is None:
-            self._mass_index = MassIndex((e, e.diff_mono, _slots(e)) for e in self._by_id.values())
+            self._mass_index = MassIndex((e, e.get_mass(), _slots(e)) for e in self._by_id.values())
         hits = self._mass_index.search(
             delta, tolerance=tolerance, unit=unit, site=site, position=position, error=PsimodError
         )
