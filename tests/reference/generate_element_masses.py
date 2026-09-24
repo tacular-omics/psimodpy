@@ -21,7 +21,7 @@ from pyteomics import mass
 
 import psimodpy
 
-_KEY_RE = re.compile(r"^(?:\((\d+)\))?([A-Z][a-z]?)$")
+_KEY_RE = re.compile(r"^(\d+)?([A-Z][a-z]?)$")
 OUT = Path(__file__).with_name("element_masses.json")
 
 

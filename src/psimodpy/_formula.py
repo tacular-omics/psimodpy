@@ -17,7 +17,31 @@ import re
 
 # Matches either "(12)C" or "C" followed by whitespace and an integer count (may be negative).
 _TOKEN_RE = re.compile(r"(\(\d+\)[A-Za-z]+|[A-Za-z]+)\s+(-?\d+)")
-_ISOTOPE_RE = re.compile(r"^\((\d+)\)([A-Za-z]+)$")
+# An isotope key in either style: PSI-MOD "(13)C" or tacular/ProForma "13C".
+_ISOTOPE_RE = re.compile(r"^(?:\((\d+)\)|(\d+))([A-Za-z]+)$")
+
+
+def _split_isotope(element: str) -> tuple[int, str]:
+    """Return (isotope number or 0, element symbol) for "C", "(13)C" or "13C"."""
+    m = _ISOTOPE_RE.match(element)
+    if m is None:
+        return 0, element
+    return int(m.group(1) or m.group(2)), m.group(3)
+
+
+def to_isotope_keys(composition: dict[str, int]) -> dict[str, int]:
+    """Rename PSI-MOD isotope keys to the tacular/peptacular style: "(13)C" -> "13C".
+
+    Examples:
+        >>> to_isotope_keys({"(13)C": 3, "H": 4, "O": 1})
+        {'13C': 3, 'H': 4, 'O': 1}
+    """
+    result: dict[str, int] = {}
+    for element, count in composition.items():
+        iso, symbol = _split_isotope(element)
+        key = f"{iso}{symbol}" if iso else element
+        result[key] = result.get(key, 0) + count
+    return result
 
 
 def parse_formula(formula: str) -> dict[str, int]:
@@ -47,9 +71,8 @@ def _hill_order(composition: dict[str, int]) -> list[tuple[str, int]]:
     for element, count in composition.items():
         if count == 0:
             continue
-        # Isotopic carbons: "(12)C", "(13)C", "(14)C" — contain "C" after closing paren
-        # Non-isotopic carbon: "C"
-        base = re.sub(r"^\(\d+\)", "", element)  # strip isotope prefix
+        # Isotopic carbons: "(13)C" or "13C"; non-isotopic carbon: "C"
+        base = _split_isotope(element)[1]
         if base == "C":
             carbon_group.append((element, count))
         elif base == "H":
@@ -59,15 +82,12 @@ def _hill_order(composition: dict[str, int]) -> list[tuple[str, int]]:
 
     # Sort each group: isotopic variants before non-isotopic, then by isotope number
     def _sort_key(ec: tuple[str, int]) -> tuple[int, str]:
-        element = ec[0]
-        m = re.match(r"^\((\d+)\)", element)
-        isotope_num = int(m.group(1)) if m else 0
-        return (isotope_num, element)
+        return (_split_isotope(ec[0])[0], ec[0])
 
     carbon_group.sort(key=_sort_key)
     hydrogen_group.sort(key=_sort_key)
     # Alphabetical by element symbol, so an isotope sorts with its element: N, (15)N, O, (18)O
-    other.sort(key=lambda ec: (re.sub(r"^\(\d+\)", "", ec[0]), _sort_key(ec)[0]))
+    other.sort(key=lambda ec: _split_isotope(ec[0])[::-1])
 
     return carbon_group + hydrogen_group + other
 
@@ -95,7 +115,7 @@ def formula_to_proforma(composition: dict[str, int]) -> str:
     """Convert an element-count dict to a ProForma 2.0 formula string.
 
     Same ordering and count rules as formula_to_hill, but isotopes use ProForma
-    bracket syntax with the count inside the brackets: "(2)H" x8 becomes "[2H8]".
+    bracket syntax with the count inside the brackets: "(2)H" or "2H" x8 becomes "[2H8]".
 
     Examples:
         >>> formula_to_proforma({"C": 3, "H": 5, "N": 1, "O": 1})
@@ -108,6 +128,6 @@ def formula_to_proforma(composition: dict[str, int]) -> str:
     parts: list[str] = []
     for element, count in _hill_order(composition):
         suffix = "" if count == 1 else str(count)
-        m = _ISOTOPE_RE.match(element)
-        parts.append(f"[{m.group(1)}{m.group(2)}{suffix}]" if m else f"{element}{suffix}")
+        iso, symbol = _split_isotope(element)
+        parts.append(f"[{iso}{symbol}{suffix}]" if iso else f"{element}{suffix}")
     return "".join(parts)

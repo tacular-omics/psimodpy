@@ -171,7 +171,7 @@ their fields are) or `StrEnum`s (compare equal to their string value).
 Computed properties:
 
 - `dict_diff_formula -> dict[str, int] | None`: `diff_formula` parsed; zero and
-  negative counts kept; isotopes keyed like `"(13)C"`.
+  negative counts kept; isotopes keyed like tacular, `"13C"` (the OBO writes `(13)C`).
 - `dict_formula -> dict[str, int] | None`: same for `formula`.
 - `proforma_diff_formula -> str | None`: `dict_diff_formula` in Hill notation
   (C, then H, then alphabetical; zero counts dropped; count 1 omitted; negatives

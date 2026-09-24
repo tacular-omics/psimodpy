@@ -20,7 +20,7 @@ from psimodpy import PsiModEntry
 _TABLE = json.loads((Path(__file__).parent / "reference" / "element_masses.json").read_text())
 _ELEMENTS: dict[str, dict[str, float]] = _TABLE["elements"]
 _ELECTRON: float = _TABLE["electron_mass"]
-_KEY_RE = re.compile(r"^(?:\((\d+)\))?([A-Z][a-z]?)$")
+_KEY_RE = re.compile(r"^(\d+)?([A-Z][a-z]?)$")
 
 # Upstream values are rounded to 5-6 decimals, and PSI-MOD's atomic mass table is not
 # the same AME release as NIST's (up to ~3e-5 Da apart for heavy elements).
@@ -56,13 +56,13 @@ def _mass(composition: dict[str, int], kind: str) -> float:
     total = 0.0
     for token, count in composition.items():
         m = _KEY_RE.match(token)
-        assert m is not None, f"formula token {token!r} is not an element or (N)isotope"
+        assert m is not None, f"formula token {token!r} is not an element or isotope"
         total += _ELEMENTS[f"{m.group(1) or ''}{m.group(2)}"][kind] * count
     return total
 
 
 def _is_labelled(composition: dict[str, int]) -> bool:
-    return any(token.startswith("(") and count for token, count in composition.items())
+    return any(token[0].isdigit() and count for token, count in composition.items())
 
 
 def _cases(db: psimodpy.PsiModDatabase):
