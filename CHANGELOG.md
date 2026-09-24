@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-Additive only: nothing that worked in 1.0 changes behaviour.
+Additive only for the Python API: nothing that worked in 1.0 changes behaviour. The MCP list tools change shape (see Changed).
 
 ### Added
 
@@ -15,6 +15,8 @@ Additive only: nothing that worked in 1.0 changes behaviour.
 ### Changed
 
 - `search()` is several times faster: each entry's lowercased name, definition and synonyms are joined once when the database is built, so a query is one substring test per entry instead of lowercasing every field on every call. Results and their order are unchanged (tested against the 1.0 algorithm).
+- MCP server (`server` extra): `get_by_origin`, `get_children` and `get_parents` now take `limit` (default 25, 1-500) and return a page `{total, limit, truncated, items}` of summaries (`id`, `accession`, `name`, `mass_mono`, `is_obsolete`, the same shape as `search`) instead of an unbounded list of full entries. `get_by_origin("S")` was 557 KB; it is now about 3 KB (all 154 entries with `limit=500`: about 21 KB). Call `get_by_id` for the full entry. An unknown id gives an empty page (was `[]`). The REST routes are unchanged. This is the one MCP-visible break in this release; the hosted server (psimod.tacular.dev, the claude.ai PSIMOD connector) picks it up on redeploy.
+- MCP server: unknown tool arguments are rejected with a tool error (were silently ignored), and the server instructions now say what ids look like and that list tools return summaries.
 - `import psimodpy` no longer imports `urllib.request` (and with it `http.client`, `ssl`, `email`): it is imported when `download()` runs, saving about 30 ms at import.
 
 ## [1.0.0] (2026-09-23)

@@ -113,7 +113,10 @@ protection off) because Vercel fires no ASGI lifespan events and
 
 Tools (return pydantic models, so clients get `structuredContent` + `outputSchema`):
 `get_by_id(id)`, `get_by_name(name)`, `search(query, limit=25)` (summaries; query min length 1, limit 1-500),
-`get_parents(id)`, `get_children(id)`, `get_by_origin(aa)`.
+`get_parents(id, limit=25)`, `get_children(id, limit=25)`, `get_by_origin(aa, limit=25)`: these three
+return a `SummaryPage` (`total`, `limit`, `truncated`, `items` of summaries), limit 1-500.
+Every tool rejects unknown arguments (`extra="forbid"` patched onto the SDK arg models in
+`_build_mcp`); `tests/test_mcp_vocabulary.py` guards names, units and unknown-argument rejection.
 
 ## Public API
 
@@ -152,7 +155,7 @@ From `psimodpy/__init__.py` (`__all__`):
 
 - IDs are stored as `int`. `get_by_id` accepts `46`, `"46"` or `"MOD:00046"`; a
   malformed id (`"foo"`, `""`, a bool) returns `None`. The server answers HTTP 404
-  (`/api/entries/{id}`, `/parents`, `/children`) and MCP `null` / `[]`.
+  (`/api/entries/{id}`, `/parents`, `/children`) and MCP `null` / an empty page.
 - Duplicate ids raise `PsimodError`. Duplicate names (PSI-MOD has two: desmosine,
   L-methionine (R)-sulfoxide): the first non-obsolete entry wins `get_by_name`.
 - `load()` includes obsolete terms (2116); `filter()` and `GET /api/entries` exclude

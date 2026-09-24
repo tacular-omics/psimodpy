@@ -399,11 +399,18 @@ Tools (all return JSON matching the REST models, with `structuredContent` and an
 | `get_by_id` | `id: str` (`"46"` or `"MOD:00046"`) | Entry or null |
 | `get_by_name` | `name: str` (exact, case-insensitive) | Entry or null |
 | `search` | `query: str`, `limit: int = 25` | `[Summary]`; call `get_by_id` for full records |
-| `get_parents` | `id: str` | `[Entry]`, empty if id unknown |
-| `get_children` | `id: str` | `[Entry]`, empty if id unknown |
-| `get_by_origin` | `aa: str` (one-letter code) | `[Entry]` |
+| `get_parents` | `id: str`, `limit: int = 25` | Page; empty if id unknown |
+| `get_children` | `id: str`, `limit: int = 25` | Page; empty if id unknown |
+| `get_by_origin` | `aa: str` (one-letter code), `limit: int = 25` | Page |
 
-Server instructions string: "Query the PSI-MOD protein modification ontology."
+A Page is `{"total": int, "limit": int, "truncated": bool, "items": [Summary]}`:
+at most `limit` (1-500) summaries, `total` matches before the limit, `truncated`
+true when more exist. A Summary is `{id, accession, name, mass_mono, is_obsolete}`;
+call `get_by_id` for the full entry. Unknown arguments are rejected with a tool error.
+
+Server instructions string: "Query the PSI-MOD protein modification ontology. Ids look
+like "MOD:00046" or "46". search, get_parents, get_children and get_by_origin return
+bounded summaries; call get_by_id for a full entry."
 
 Raw JSON-RPC example:
 
@@ -433,7 +440,7 @@ from psimodpy.server import mcp
    returns `[]`. Crosslinks are returned for each of their sites; `"X"` returns
    entries whose origin is "any residue", not all entries.
 3. `get_by_id` with a malformed id (`"foo"`) returns `None`. The server answers
-   `GET /api/entries/foo` with HTTP 404 and the MCP tools with `null` / `[]`.
+   `GET /api/entries/foo` with HTTP 404 and the MCP tools with `null` / an empty page.
 4. PSI-MOD formulas are **not** Hill order and use `(13)C`-style isotope prefixes.
    Use `proforma_formula` for a compact string and `dict_composition` / `dict_formula` for math.
 5. `diff_mono` is the modification delta; `mass_mono` is the full modified residue.

@@ -102,7 +102,9 @@ This starts a FastAPI app exposing the database as both a JSON REST API
 (`GET /api/entries/{id}`, `/api/search`, `/api/by-origin/{aa}`, `/api/entries/{id}/parents`, …)
 and an [MCP](https://modelcontextprotocol.io) endpoint at `POST /mcp` with
 `get_by_id`, `get_by_name`, `search`, `get_parents`, `get_children`, and
-`get_by_origin` tools, for pointing LLM clients directly at PSI-MOD:
+`get_by_origin` tools, for pointing LLM clients directly at PSI-MOD. The list tools
+return at most `limit` (default 25) summaries plus `total`/`truncated`; `get_by_id`
+gives the full entry:
 
 ```bash
 claude mcp add psi-mod http://localhost:8000/mcp --transport http

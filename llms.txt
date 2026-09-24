@@ -13,7 +13,8 @@ cross-references to Unimod, UniProt PTM and GNOme.
 
 An optional `server` extra (`pip install "psimodpy[server]"`) adds a FastAPI REST
 API and an MCP endpoint (`/mcp`, streamable HTTP) with tools `get_by_id`,
-`get_by_name`, `search`, `get_parents`, `get_children`, `get_by_origin`. A hosted
+`get_by_name`, `search`, `get_parents`, `get_children`, `get_by_origin` (list tools return
+bounded summaries). A hosted
 instance runs at https://psimod.tacular.dev. Part of the tacular-omics family,
 alongside unimodpy and uniprotptmpy.
 

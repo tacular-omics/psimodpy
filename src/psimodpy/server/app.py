@@ -22,8 +22,10 @@ from psimodpy.server.models import (
     PsiModEntry,
     PsiModSummary,
     SearchResponse,
+    SummaryPage,
     to_psimod_entry,
     to_psimod_summary,
+    to_summary_page,
 )
 
 _db = psimodpy.load()
@@ -57,10 +59,17 @@ _DASHBOARD_HTML = _load_dashboard_html()
 # ---------------------------------------------------------------------------
 
 
+_Limit = Annotated[int, Field(ge=1, le=500)]
+
+
 def _build_mcp() -> MCPServer:
     mcp = MCPServer(
         _PACKAGE,
-        instructions="Query the PSI-MOD protein modification ontology.",
+        instructions=(
+            'Query the PSI-MOD protein modification ontology. Ids look like "MOD:00046" or "46". '
+            "search, get_parents, get_children and get_by_origin return bounded summaries; "
+            "call get_by_id for a full entry."
+        ),
     )
 
     @mcp.tool()
@@ -76,9 +85,7 @@ def _build_mcp() -> MCPServer:
         return to_psimod_entry(entry) if entry else None
 
     @mcp.tool()
-    def search(
-        query: Annotated[str, Field(min_length=1)], limit: Annotated[int, Field(ge=1, le=500)] = 25
-    ) -> list[PsiModSummary]:
+    def search(query: Annotated[str, Field(min_length=1)], limit: _Limit = 25) -> list[PsiModSummary]:
         """Full-text search over names, definitions, and synonyms.
 
         ``query`` must be non-empty. Returns up to ``limit`` (1-500) lightweight
@@ -87,25 +94,43 @@ def _build_mcp() -> MCPServer:
         return [to_psimod_summary(e) for e in _db.search(query)[:limit]]
 
     @mcp.tool()
-    def get_parents(id: str) -> list[PsiModEntry]:
-        """Return direct ``is_a`` parents of the given entry."""
+    def get_parents(id: str, limit: _Limit = 25) -> SummaryPage:
+        """Return direct ``is_a`` parents of the given entry as summaries.
+
+        At most ``limit`` (1-500) items; ``total`` and ``truncated`` say whether more
+        exist.  Unknown or malformed ``id`` gives an empty page.  Call ``get_by_id``
+        on a returned ``id`` for the full entry.
+        """
         entry = _db.get_by_id(id)
-        if entry is None:
-            return []
-        return [to_psimod_entry(p) for p in _db.get_parents(entry)]
+        return to_summary_page(_db.get_parents(entry) if entry else [], limit)
 
     @mcp.tool()
-    def get_children(id: str) -> list[PsiModEntry]:
-        """Return entries with the given entry as a direct ``is_a`` parent."""
+    def get_children(id: str, limit: _Limit = 25) -> SummaryPage:
+        """Return entries with the given entry as a direct ``is_a`` parent, as summaries.
+
+        At most ``limit`` (1-500) items; ``total`` and ``truncated`` say whether more
+        exist.  Unknown or malformed ``id`` gives an empty page.  Call ``get_by_id``
+        on a returned ``id`` for the full entry.
+        """
         entry = _db.get_by_id(id)
-        if entry is None:
-            return []
-        return [to_psimod_entry(c) for c in _db.get_children(entry)]
+        return to_summary_page(_db.get_children(entry) if entry else [], limit)
 
     @mcp.tool()
-    def get_by_origin(aa: str) -> list[PsiModEntry]:
-        """Return entries whose origin includes the given single-letter amino acid code."""
-        return [to_psimod_entry(e) for e in _db.get_by_origin(aa)]
+    def get_by_origin(aa: str, limit: _Limit = 25) -> SummaryPage:
+        """Return entries whose origin includes the given single-letter amino acid code, as summaries.
+
+        ``aa`` is case-sensitive (``"S"``, not ``"s"``).  At most ``limit`` (1-500)
+        items; ``total`` and ``truncated`` say whether more exist.  Call ``get_by_id``
+        on a returned ``id`` for the full entry.
+        """
+        return to_summary_page(_db.get_by_origin(aa), limit)
+
+    # The SDK's argument models silently drop unknown arguments; a misspelled or
+    # renamed argument must fail instead of being ignored (same patch as peptacular).
+    for tool in mcp._tool_manager.list_tools():
+        tool.fn_metadata.arg_model.model_config["extra"] = "forbid"
+        tool.fn_metadata.arg_model.model_rebuild(force=True)
+        tool.parameters = tool.fn_metadata.arg_model.model_json_schema()
 
     return mcp
 
