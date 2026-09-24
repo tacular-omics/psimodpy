@@ -162,6 +162,7 @@ class PsiModDatabase:
         unit: str = "da",
         site: str | None = None,
         position: str | None = None,
+        include_obsolete: bool = False,
     ) -> list[tuple[PsiModEntry, float]]:
         """Return ``(entry, error)`` pairs whose delta mass is within ``tolerance`` of ``delta``.
 
@@ -173,10 +174,15 @@ class PsiModDatabase:
 
         Args:
             delta: Observed monoisotopic mass shift in Da; may be negative.
-            tolerance: Window half-width, inclusive; ``0`` means an exact match.
-            unit: ``"da"`` (default) or ``"ppm"`` (parts per million of ``abs(delta)``).
+            tolerance: Window half-width in Da; both edges are inclusive (with a 1e-9 relative
+                slack for float rounding), and ``0`` means an exact match.
+            unit: Only ``"da"`` (the default), exact and lowercase; anything else raises.
+                ppm is not offered: a ppm window on a delta mass is ill-defined (relative
+                to the delta, or to the modified peptide's mass?). The keyword is kept so
+                the call matches ``tacular.tolerance``; other units may be added later.
             site: Residue letter(s) the modification sits on, e.g. ``"S"`` or ``"STY"``
                 (any of them), or ``"N-term"`` / ``"C-term"`` for a terminus modification.
+                Several letters mean any of them (``get_by_site`` takes exactly one residue).
                 Matched against ``origin`` (each residue of a crosslink); origin ``X`` matches
                 only ``site="X"``. PSI-MOD has no terminus-only entries, so ``"N-term"`` finds none.
             position: Where the modified residue was observed: ``"anywhere"`` (inside the
@@ -184,6 +190,9 @@ class PsiModDatabase:
                 or ``"protein c-term"`` (case-insensitive). Keeps entries allowed there;
                 a modification allowed anywhere is allowed at a terminus too. PSI-MOD's ``TermSpec`` does not
                 say protein or peptide: an N-term entry matches both N-terminal positions.
+            include_obsolete: If False (default), skip obsolete terms (``is_obsolete``); they
+                duplicate current terms' masses. True keeps them, when the database has them
+                (``load(include_obsolete=False)`` drops them at load time).
 
         Raises:
             PsimodError: ``delta`` or ``tolerance`` is not a finite number (or ``tolerance`` < 0),
@@ -191,9 +200,12 @@ class PsiModDatabase:
         """
         if self._mass_index is None:
             self._mass_index = MassIndex((e, e.diff_mono, _slots(e)) for e in self._by_id.values())
-        return self._mass_index.search(
+        hits = self._mass_index.search(
             delta, tolerance=tolerance, unit=unit, site=site, position=position, error=PsimodError
         )
+        if not isinstance(include_obsolete, bool):
+            raise PsimodError(f"include_obsolete must be a bool, got {include_obsolete!r}")
+        return hits if include_obsolete else [hit for hit in hits if not hit[0].is_obsolete]
 
     def get_by_site(self, site: str) -> list[PsiModEntry]:
         """Return entries whose origin includes residue ``site`` (case-insensitive).
@@ -202,6 +214,7 @@ class PsiModDatabase:
         uniprotptmpy's ``get_by_site``, but each entry appears once: a crosslink with
         origin ``"S, S"`` is listed twice by ``get_by_origin("S")`` and once here.
         A non-string returns ``[]``.
+        Takes exactly one residue; ``search_mass(site=...)`` takes several letters (any of them).
         """
         if not isinstance(site, str):
             return []

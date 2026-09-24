@@ -128,24 +128,23 @@ class MassIndex[E]:
             raise error(f"tolerance must be a number >= 0, got {tolerance!r}")
         if not math.isfinite(tolerance):
             raise error(f"tolerance must be finite, got {tolerance!r}")
-        unit_key = unit.strip().lower() if isinstance(unit, str) else None
-        if unit_key == "da":
-            tol = float(tolerance)
-        elif unit_key == "ppm":
-            tol = abs(delta) * tolerance * 1e-6
-        else:
-            raise error(f"unknown unit {unit!r}: use 'da' or 'ppm'")
+        # Only Da: a ppm window on a delta mass is ill-defined (ppm of the delta, or of the
+        # peptide?). Adding a unit later is additive; loosening then tightening is not.
+        if not isinstance(unit, str) or unit != "da":
+            raise error(f"unknown unit {unit!r}: only 'da' is supported")
+        tol = float(tolerance)
         site_query = parse_site(site, error) if site is not None else None
         position_key = parse_position(position, error) if position is not None else None
 
-        # Widen the bisect window by a hair; the exact |delta - mass| <= tol test decides.
+        # Widen the window by a hair so a mass exactly on the edge (79.976331 - 79.966331 is
+        # 0.010000000000005 in floats) is inside: the edges are inclusive.
         slack = 1e-9 * max(1.0, abs(delta))
         lo = bisect.bisect_left(self.masses, delta - tol - slack)
         hi = bisect.bisect_right(self.masses, delta + tol + slack)
         hits = [
             (self.entries[i], delta - self.masses[i])
             for i in range(lo, hi)
-            if abs(delta - self.masses[i]) <= tol and slot_matches(self.slots[i], site_query, position_key)
+            if abs(delta - self.masses[i]) <= tol + slack and slot_matches(self.slots[i], site_query, position_key)
         ]
         hits.sort(key=lambda hit: abs(hit[1]))  # stable: ties stay in mass, then database, order
         return hits

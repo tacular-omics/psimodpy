@@ -17,14 +17,17 @@ def _mass(entry) -> float | None:
     return entry.diff_mono
 
 
-def _brute(db: PsiModDatabase, delta, tolerance=0.01, unit="da", site=None, position=None):
-    """Linear scan reference: every entry, exact window test, sorted by (|error|, mass, order)."""
-    tol = tolerance if unit == "da" else abs(delta) * tolerance * 1e-6
+def _brute(db: PsiModDatabase, delta, tolerance=0.01, unit="da", site=None, position=None, include_obsolete=False):
+    """Linear scan reference: every entry, inclusive window test, sorted by (|error|, mass, order)."""
+    assert unit == "da"
+    tol = tolerance + 1e-9 * max(1.0, abs(delta))  # inclusive edges, same slack as the index
     sq = parse_site(site, PsimodError) if site is not None else None
     pq = parse_position(position, PsimodError) if position is not None else None
     hits = []
     for i, e in enumerate(db):
         m = _mass(e)
+        if e.is_obsolete and not include_obsolete:
+            continue
         if m is None or not math.isfinite(m) or abs(delta - m) > tol:
             continue
         if slot_matches(_slots(e), sq, pq):
@@ -59,14 +62,21 @@ def test_oxidation_on_m(db: PsiModDatabase) -> None:
     assert all(abs(err) <= 0.01 for _, err in hits)
 
 
-def test_ppm_vs_da(db: PsiModDatabase) -> None:
-    # Sulfo (79.956815) is 9.5 mDa (119 ppm) from phospho: inside 0.01 Da, outside 5 ppm.
-    da = _names(db.search_mass(79.966331, tolerance=0.01, site="S"))
-    ppm = _names(db.search_mass(79.966331, tolerance=5, unit="PPM", site="S"))
-    assert "O-sulfo-L-serine" in da
-    assert "O-sulfo-L-serine" not in ppm
-    assert set(ppm) < set(da)
-    assert ppm[0] == ["O-phospho-L-serine", "O-phospho-L-threonine", "O4'-phospho-L-tyrosine"][0]
+def test_tighter_window_drops_sulfo(db: PsiModDatabase) -> None:
+    # Sulfo (79.956815) is 9.5 mDa from phospho: inside 0.01 Da, outside 0.005 Da.
+    wide = _names(db.search_mass(79.966331, tolerance=0.01))
+    tight = _names(db.search_mass(79.966331, tolerance=0.005))
+    assert "O-sulfo-L-serine" in wide
+    assert "O-sulfo-L-serine" not in tight
+    assert "O-phospho-L-serine" in tight
+    assert set(tight) < set(wide)
+
+
+def test_window_edges_are_inclusive(db: PsiModDatabase) -> None:
+    # 79.976331 - 79.966331 is 0.010000000000005 in floats: still inside tolerance=0.01.
+    assert "O-phospho-L-serine" in _names(db.search_mass(79.976331, tolerance=0.01))
+    assert "O-phospho-L-serine" in _names(db.search_mass(79.956331, tolerance=0.01))
+    assert "O-phospho-L-serine" not in _names(db.search_mass(79.976332, tolerance=0.01))
 
 
 def test_n_terminal_acetyl_position(db: PsiModDatabase) -> None:
@@ -93,17 +103,17 @@ def test_negative_delta(db: PsiModDatabase) -> None:
 
 
 def test_zero_tolerance_is_exact(db: PsiModDatabase) -> None:
-    target = next(e for e in db if _mass(e) is not None and _mass(e) > 1)
+    target = next(e for e in db if _mass(e) is not None and _mass(e) > 1 and not e.is_obsolete)
     hits = db.search_mass(_mass(target), tolerance=0)
     assert target in [e for e, _ in hits]
-    assert all(err == 0 for _, err in hits)
+    assert all(abs(err) <= 1e-9 * max(1.0, abs(_mass(target))) for _, err in hits)
     assert db.search_mass(_mass(target) + 1e-6, tolerance=0) == []
 
 
 def test_no_filters_returns_every_entry_in_window(db: PsiModDatabase) -> None:
     assert db.search_mass(1e7) == []
     everything = db.search_mass(0, tolerance=1e7)
-    assert len(everything) == sum(_mass(e) is not None for e in db)
+    assert len(everything) == sum(_mass(e) is not None and not e.is_obsolete for e in db)
 
 
 def test_entries_without_mass_are_skipped(db: PsiModDatabase) -> None:
@@ -136,7 +146,7 @@ def test_unknown_position_raises(db: PsiModDatabase, position: object) -> None:
         db.search_mass(79.966, position=position)  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("unit", ["mda", "", None, "ppm "[:2]])
+@pytest.mark.parametrize("unit", ["ppm", "PPM", "Da", "DA", " da", "da ", "mda", "", None, 1])
 def test_unknown_unit_raises(db: PsiModDatabase, unit: object) -> None:
     with pytest.raises(PsimodError, match="unit"):
         db.search_mass(79.966, unit=unit)  # type: ignore[arg-type]
@@ -154,9 +164,10 @@ def test_bad_tolerance_raises(db: PsiModDatabase, tolerance: object) -> None:
         db.search_mass(79.966, tolerance=tolerance)  # type: ignore[arg-type]
 
 
-def test_errors_are_value_errors(db: PsiModDatabase) -> None:
-    with pytest.raises(ValueError):
+def test_errors_are_the_package_error(db: PsiModDatabase) -> None:
+    with pytest.raises(PsimodError) as info:
         db.search_mass(79.966, site="B")
+    assert type(info.value) is PsimodError
 
 
 # ---------------------------------------------------------------- property: index == brute force
@@ -180,17 +191,17 @@ def test_matches_brute_force_da(db: PsiModDatabase, delta, tolerance, site, posi
 @given(
     entry_index=st.integers(min_value=0, max_value=10_000),
     offset=st.floats(min_value=-0.05, max_value=0.05, allow_nan=False),
-    tolerance=st.floats(min_value=0, max_value=200, allow_nan=False),
+    tolerance=st.floats(min_value=0, max_value=0.05, allow_nan=False),
     site=_sites,
     position=_positions,
 )
-def test_matches_brute_force_ppm_near_real_masses(
+def test_matches_brute_force_near_real_masses(
     db: PsiModDatabase, entry_index, offset, tolerance, site, position
 ) -> None:
     masses = [_mass(e) for e in db if _mass(e) is not None]
     delta = masses[entry_index % len(masses)] + offset
-    got = db.search_mass(delta, tolerance=tolerance, unit="ppm", site=site, position=position)
-    assert got == _brute(db, delta, tolerance, "ppm", site, position)
+    got = db.search_mass(delta, tolerance=tolerance, site=site, position=position)
+    assert got == _brute(db, delta, tolerance, "da", site, position)
 
 
 # ---------------------------------------------------------------- get_by_site
@@ -214,3 +225,26 @@ def test_get_by_site_unknown_is_empty(db: PsiModDatabase, site: object) -> None:
 def test_get_by_site_returns_fresh_list(db: PsiModDatabase) -> None:
     db.get_by_site("S").clear()
     assert db.get_by_site("S")
+
+
+def test_obsolete_terms_skipped_by_default(db: PsiModDatabase) -> None:
+    obsolete = [e for e in db if e.is_obsolete and _mass(e) is not None]
+    assert obsolete
+    default = db.search_mass(0, tolerance=1e7)
+    everything = db.search_mass(0, tolerance=1e7, include_obsolete=True)
+    assert not any(e.is_obsolete for e, _ in default)
+    assert len(everything) == len(default) + len(obsolete)
+    target = obsolete[0]
+    assert target not in [e for e, _ in db.search_mass(_mass(target), tolerance=0)]
+    assert target in [e for e, _ in db.search_mass(_mass(target), tolerance=0, include_obsolete=True)]
+    assert db.search_mass(79.966, include_obsolete=True) == _brute(db, 79.966, include_obsolete=True)
+
+
+@pytest.mark.parametrize("flag", [None, 1, "yes"])
+def test_include_obsolete_must_be_bool(db: PsiModDatabase, flag: object) -> None:
+    with pytest.raises(PsimodError, match="include_obsolete"):
+        db.search_mass(79.966, include_obsolete=flag)  # type: ignore[arg-type]
+
+
+def test_exact_edge_finds_mod_00046(db: PsiModDatabase) -> None:
+    assert "MOD:00046" in [e.accession for e, _ in db.search_mass(79.976331, tolerance=0.01)]
