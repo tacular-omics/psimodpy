@@ -59,9 +59,9 @@ src/psimodpy/
   models.py          frozen dataclasses (PsiModEntry, Synonym, Relationship, Crosslink)
                      and StrEnums (AminoAcid, SynonymType, RelationshipType, TermSpec, Source)
   parser.py          parse_obo(): line-based OBO reader -> PsiModDatabase; keeps header lines
-  errors.py          PsimodError, PsimodParseError(PsimodError, ValueError)
+  errors.py          PsimodError(ValueError), PsimodParseError, PsimodKeyError(PsimodError, KeyError)
   database.py        PsiModDatabase (indexes by id, lowercase name, origin, reverse is_a),
-                     load(source=None, *, refresh, include_obsolete); load_from deprecated
+                     load(source=None, *, refresh, include_obsolete, cache); load_from deprecated
   _formula.py        parse_formula("C 0 H 1 O 3 P 1") -> dict; formula_to_hill(dict) -> "HO3P"
   _tabular.py        write_tsv(): fixed columns + one synonym_<type> column per type seen
   _obo_writer.py     write_obo(): round-trips through parse_obo
@@ -119,12 +119,12 @@ Tools (return pydantic models, so clients get `structuredContent` + `outputSchem
 
 From `psimodpy/__init__.py` (`__all__`):
 
-- Loading: `load(source=None, *, refresh=False, include_obsolete=True)`, `parse_obo(path)`,
+- Loading: `load(source=None, *, refresh=False, include_obsolete=True, cache=False)`, `parse_obo(path)`,
   `download(dest=None, *, force=False)`; deprecated `load_from(path)`, `download_obo`.
-- Errors: `PsimodError`, `PsimodParseError`.
+- Errors: `PsimodError`, `PsimodParseError`, `PsimodKeyError`.
 - Writing: `write_tsv(entries, path, *, delimiter="\t")`,
   `write_obo(entries, path, *, header_lines=())`.
-- Database: `PsiModDatabase` with `db[id]` (KeyError), `get_by_id`, `get_by_name`,
+- Database: `PsiModDatabase` with `db[id]` (PsimodKeyError, a KeyError), `get_by_id`, `get_by_name`,
   `search`, `get_by_origin`, `get_parents`, `get_children`, `get_related(entry, rel_type)`,
   `filter(*, include_obsolete=False, slim_only=False)`, `write_tsv`, `write_obo`,
   `header_lines`, `len()`, iteration.

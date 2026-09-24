@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import functools
 import importlib.resources
 import warnings
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
-from psimodpy.errors import PsimodError
+from psimodpy.errors import PsimodError, PsimodKeyError
 from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, RelationshipType
+
+# Joins the lowercased search fields of one entry. A query without this character can
+# only match inside one field, so one substring test replaces one test per field.
+_SEP = "\x00"
 
 
 class PsiModDatabase:
@@ -47,6 +52,9 @@ class PsiModDatabase:
             elif isinstance(entry.origin, Crosslink):
                 for site in entry.origin.sites:
                     self._by_origin.setdefault(site, []).append(entry)
+
+        # (entry, lowercased name/definition/synonyms joined by _SEP), in id order, for search().
+        self._haystacks: list[tuple[PsiModEntry, str]] = [(e, _haystack(e)) for e in self._by_id.values()]
 
         # Build reverse is_a index after all entries are loaded
         for entry in self._by_id.values():
@@ -98,14 +106,15 @@ class PsiModDatabase:
 
     def __getitem__(self, key: object) -> PsiModEntry:
         """Return the entry by id (34, "34", "00034", "MOD:00034") or, failing that, by name
-        (case-insensitive). Raise KeyError for a missing, malformed or non-int/str key."""
+        (case-insensitive). Raise PsimodKeyError (a KeyError) for a missing, malformed or
+        non-int/str key."""
         entry = None
         if isinstance(key, int | str):
             entry = self.get_by_id(key)
             if entry is None and isinstance(key, str):
                 entry = self.get_by_name(key)
         if entry is None:
-            raise KeyError(key)
+            raise PsimodKeyError(key)
         return entry
 
     def __contains__(self, key: object) -> bool:
@@ -137,15 +146,10 @@ class PsiModDatabase:
         q = query.lower()
         if not q:
             return list(self._by_id.values())
-        results = []
-        for entry in self._by_id.values():
-            if (
-                q in entry.name.lower()
-                or q in entry.definition.lower()
-                or any(q in s.value.lower() for s in entry.synonyms)
-            ):
-                results.append(entry)
-        return results
+        if _SEP in q:
+            # Rare: the query could span two joined fields, so test each field.
+            return [e for e in self._by_id.values() if any(q in f for f in _fields(e))]
+        return [entry for entry, haystack in self._haystacks if q in haystack]
 
     def get_by_origin(self, aa: str) -> list[PsiModEntry]:
         """Return all entries whose origin includes the given amino acid code.
@@ -209,11 +213,28 @@ class PsiModDatabase:
         return write_obo(self._by_id.values(), path, header_lines=self.header_lines)
 
 
+def _fields(entry: PsiModEntry) -> list[str]:
+    """Return the lowercased name, definition and synonyms of ``entry``: the fields search() looks in."""
+    return [entry.name.lower(), entry.definition.lower(), *(s.value.lower() for s in entry.synonyms)]
+
+
+def _haystack(entry: PsiModEntry) -> str:
+    """Return ``_fields(entry)`` joined by ``_SEP``."""
+    return _SEP.join(_fields(entry))
+
+
+@functools.cache
+def _load_bundled(include_obsolete: bool) -> PsiModDatabase:
+    """Parse the bundled OBO once per ``include_obsolete`` value; backs ``load(cache=True)``."""
+    return load(include_obsolete=include_obsolete)
+
+
 def load(
     source: Path | str | None = None,
     *,
     refresh: bool = False,
     include_obsolete: bool = True,
+    cache: bool = False,
 ) -> PsiModDatabase:
     """Load the PSI-MOD database.
 
@@ -224,15 +245,26 @@ def load(
         include_obsolete: If True (default), include obsolete entries. Obsolete
             entries carry xref_remap redirects useful for cross-reference resolution.
             Pass False to exclude them.
+        cache: If True, parse the bundled file only once per process and return
+            that same database object on every later ``load(cache=True)`` call
+            (one per ``include_obsolete`` value). The shared object is read-only
+            in practice (entries are frozen and it has no mutating methods); do not
+            reassign its attributes. Only for the bundled file: cannot be combined
+            with ``source`` or ``refresh``. Default False: a new database each call.
 
     Returns:
         A PsiModDatabase; ``header_lines`` is kept whatever ``include_obsolete`` is.
 
     Raises:
-        ValueError: if both ``source`` and ``refresh=True`` are given.
+        ValueError: if both ``source`` and ``refresh=True`` are given, or ``cache=True``
+            is combined with either.
     """
     from psimodpy.parser import parse_obo
 
+    if cache:
+        if source is not None or refresh:
+            raise ValueError("cache=True only applies to the bundled file; drop source and refresh")
+        return _load_bundled(include_obsolete)
     if refresh:
         if source is not None:
             raise ValueError("pass either source or refresh=True, not both")

@@ -4,7 +4,7 @@ from psimodpy._download import download, download_obo
 from psimodpy._obo_writer import write_obo
 from psimodpy._tabular import write_tsv
 from psimodpy.database import PsiModDatabase, load, load_from
-from psimodpy.errors import PsimodError, PsimodParseError
+from psimodpy.errors import PsimodError, PsimodKeyError, PsimodParseError
 from psimodpy.models import (
     AminoAcid,
     Crosslink,
@@ -30,6 +30,7 @@ __all__ = [
     "Source",
     "PsiModDatabase",
     "PsimodError",
+    "PsimodKeyError",
     "PsimodParseError",
     "load",
     "load_from",
