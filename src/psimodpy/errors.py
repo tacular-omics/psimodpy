@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 
-class PsimodError(ValueError):
-    """Base class for psimodpy errors, e.g. a duplicate id while building a database.
-
-    Also a ``ValueError`` (since 1.1), so ``except ValueError`` catches every psimodpy error.
-    """
+class PsimodError(Exception):
+    """Base class for psimodpy errors, e.g. a duplicate id while building a database."""
 
 
 class PsimodParseError(PsimodError, ValueError):
@@ -15,4 +12,4 @@ class PsimodParseError(PsimodError, ValueError):
 
 
 class PsimodKeyError(PsimodError, KeyError):
-    """``db[key]`` found no entry. Also a ``KeyError``; ``args[0]`` is the key looked up."""
+    """``db[key]`` found no entry. Also a ``KeyError`` (not a ``ValueError``); ``args[0]`` is the key looked up."""

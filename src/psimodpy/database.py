@@ -245,12 +245,12 @@ def load(
         include_obsolete: If True (default), include obsolete entries. Obsolete
             entries carry xref_remap redirects useful for cross-reference resolution.
             Pass False to exclude them.
-        cache: If True, parse the bundled file only once per process and return
-            that same database object on every later ``load(cache=True)`` call
-            (one per ``include_obsolete`` value). The shared object is read-only
-            in practice (entries are frozen and it has no mutating methods); do not
-            reassign its attributes. Only for the bundled file: cannot be combined
-            with ``source`` or ``refresh``. Default False: a new database each call.
+        cache: If True, parse the bundled file only once per process and return that same
+            database object on every later ``load(cache=True)`` call (one per ``include_obsolete``
+            value). The returned database is shared by every ``load(cache=True)`` caller in the
+            process: do not modify it or reassign its attributes, such as ``header_lines``; a
+            change is seen by every later caller. Only for the bundled file: cannot be combined with
+            ``source`` or ``refresh``. Default False: a new database each call.
 
     Returns:
         A PsiModDatabase; ``header_lines`` is kept whatever ``include_obsolete`` is.

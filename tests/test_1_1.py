@@ -161,9 +161,10 @@ def test_download_module_urllib_attribute_resolves_lazily() -> None:
 # ---------------------------------------------------------------- errors
 
 
-def test_error_base_is_value_error() -> None:
-    assert issubclass(PsimodError, ValueError)
-    assert issubclass(PsimodError, Exception)
+def test_error_base_is_unchanged_from_1_0() -> None:
+    assert PsimodError.__bases__ == (Exception,)
+    assert not issubclass(PsimodError, ValueError)
+    assert not issubclass(PsimodKeyError, ValueError)
     assert issubclass(PsimodParseError, PsimodError)
     assert issubclass(PsimodParseError, ValueError)
 
@@ -204,3 +205,12 @@ def test_get_and_contains_still_never_raise(db: PsiModDatabase) -> None:
     sentinel = object()
     assert db.get("no-such-entry-xyz", sentinel) is sentinel  # type: ignore[arg-type]
     assert "no-such-entry-xyz" not in db
+
+
+def test_getitem_miss_not_caught_by_except_value_error(db) -> None:
+    # 1.0 code that wraps db[key] in ``except ValueError`` must still see the miss.
+    with pytest.raises(KeyError):
+        try:
+            db["no-such-entry-xyz"]
+        except ValueError:  # pragma: no cover - must not happen
+            pytest.fail("except ValueError caught a missing key")

@@ -59,7 +59,7 @@ src/psimodpy/
   models.py          frozen dataclasses (PsiModEntry, Synonym, Relationship, Crosslink)
                      and StrEnums (AminoAcid, SynonymType, RelationshipType, TermSpec, Source)
   parser.py          parse_obo(): line-based OBO reader -> PsiModDatabase; keeps header lines
-  errors.py          PsimodError(ValueError), PsimodParseError, PsimodKeyError(PsimodError, KeyError)
+  errors.py          PsimodError, PsimodParseError(PsimodError, ValueError), PsimodKeyError(PsimodError, KeyError)
   database.py        PsiModDatabase (indexes by id, lowercase name, origin, reverse is_a),
                      load(source=None, *, refresh, include_obsolete, cache); load_from deprecated
   _formula.py        parse_formula("C 0 H 1 O 3 P 1") -> dict; formula_to_hill(dict) -> "HO3P"

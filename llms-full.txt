@@ -78,7 +78,7 @@ read-only (entries are frozen; do not reassign its attributes). `cache=True` wit
 
 Parse an OBO file. Keeps the file's header lines on `db.header_lines` so
 `write_obo` can round-trip them. A malformed id, mass, charge or remap value raises
-`PsimodParseError` (a `PsimodError`, which is a `ValueError`) naming the file and line; a
+`PsimodParseError` (a `PsimodError` and a `ValueError`) naming the file and line; a
 duplicate id raises `PsimodError`. Recoverable problems only `warnings.warn`: a
 `[Term]` without id or name is skipped, an unknown synonym type, relationship type,
 TermSpec or Source is kept as a plain string, and an unrecognised line is dropped.
