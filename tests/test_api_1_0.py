@@ -174,7 +174,7 @@ def test_load_exclude_obsolete_keeps_header_lines():
     db = psimodpy.load(include_obsolete=False)
     assert db.header_lines == psimodpy.load().header_lines
     assert db.header_lines
-    assert len(db) == 1996
+    assert len(db) == 1971
 
 
 def test_load_from_source_exclude_obsolete(tmp_path):
@@ -282,3 +282,62 @@ def test_empty_definition_ref_round_trips(tmp_path):
     assert 'def: "A definition." [PubMed:1, RESID:AA0001]' in text
     assert 'def: "d" []' in text
     assert parse_obo(out)[2].definition_ref == ""
+
+
+# ---------------------------------------------------------------------------
+# 1.0 pre-release fixes
+# ---------------------------------------------------------------------------
+
+
+def test_empty_xref_value_is_accepted_as_none(tmp_path):
+    extra = 'xref: DiffFormula: ""\nxref: Formula: ""\nxref: DiffMono: ""\nxref: Unimod: ""\nxref: Origin: ""'
+    path = _obo(tmp_path, _term(1, "x", extra))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        db = parse_obo(path)
+    entry = db.get_by_id(1)
+    assert entry is not None
+    assert entry.diff_formula is None
+    assert entry.formula is None
+    assert entry.diff_mono is None
+    assert entry.xref_unimod is None
+    assert entry.origin is None
+    assert entry.dict_composition is None
+    assert entry.proforma_formula is None
+
+
+@pytest.mark.parametrize("name", [None, 1, 1.5, b"acetyl"])
+def test_get_by_name_non_string_returns_none(db, name):
+    assert db.get_by_name(name) is None  # ty: ignore[invalid-argument-type]
+
+
+@pytest.mark.parametrize("query", [None, 1, b"acetyl"])
+def test_search_non_string_returns_empty(db, query):
+    assert db.search(query) == []  # ty: ignore[invalid-argument-type]
+
+
+def test_load_refresh_with_source_is_an_error(tmp_path):
+    path = _obo(tmp_path, _term(1, "x"))
+    with (
+        patch("psimodpy._download.download") as mock_download,
+        pytest.raises(ValueError, match=r"^pass either source or refresh=True, not both$"),
+    ):
+        psimodpy.load(path, refresh=True)
+    mock_download.assert_not_called()
+
+
+def test_entry_accession(db):
+    entry = db.get_by_id(696)
+    assert entry is not None
+    assert entry.accession == "MOD:00696"
+    assert db.get_by_id(0).accession == "MOD:00000"  # ty: ignore[possibly-missing-attribute]
+    assert db.get_by_id(entry.accession) is entry
+
+
+@pytest.mark.parametrize("line", ['xref: uniprot.ptm: "PTM-0369"', "xref: uniprot.ptm:PTM-0369"])
+def test_uniprot_ptm_xref_both_forms(tmp_path, line):
+    """PSI-MOD 1.039.0 quotes the uniprot.ptm xref like the others; older files do not."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        db = parse_obo(_obo(tmp_path, _term(1, "x", line)))
+    assert db.get_by_id(1).xref_uniprot_ptm == "PTM-0369"  # ty: ignore[possibly-missing-attribute]

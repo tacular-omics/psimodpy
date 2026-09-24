@@ -87,7 +87,7 @@ def _write_entry(fh, entry: PsiModEntry, names: dict[int, str]) -> None:
     if entry.xref_unimod is not None:
         fh.write(_xref("Unimod", entry.xref_unimod))
     if entry.xref_uniprot_ptm is not None:
-        fh.write(f"xref: uniprot.ptm:{entry.xref_uniprot_ptm}\n")
+        fh.write(_xref("uniprot.ptm", entry.xref_uniprot_ptm))
     if entry.xref_gnome is not None:
         fh.write(_xref("GNOme", entry.xref_gnome))
     if entry.xref_remap is not None:

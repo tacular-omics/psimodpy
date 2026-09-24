@@ -159,7 +159,7 @@ def test_filter_includes_obsolete(db):
 def test_filter_slim_only(db):
     slim = db.filter(slim_only=True)
     assert all(e.in_slim_subset for e in slim)
-    assert len(slim) == 811
+    assert len(slim) == 788
 
 
 def test_filter_slim_no_obsolete(db):

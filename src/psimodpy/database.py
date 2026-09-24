@@ -83,7 +83,10 @@ class PsiModDatabase:
         PSI-MOD reuses a few names (e.g. "desmosine" is both obsolete MOD:00949 and
         MOD:01933). For a duplicate name the first non-obsolete entry in file order
         wins; an obsolete entry is returned only if no non-obsolete entry has the name.
+        A non-string ``name`` returns None.
         """
+        if not isinstance(name, str):
+            return None
         return self._by_name_lower.get(name.lower())
 
     def get(self, key: object, default: PsiModEntry | None = None) -> PsiModEntry | None:
@@ -127,8 +130,10 @@ class PsiModDatabase:
     def search(self, query: str) -> list[PsiModEntry]:
         """Return entries whose name, definition, or any synonym contains query (case-insensitive).
 
-        An empty query returns all entries.
+        An empty query returns all entries; a non-string query returns ``[]``.
         """
+        if not isinstance(query, str):
+            return []
         q = query.lower()
         if not q:
             return list(self._by_id.values())
@@ -215,22 +220,27 @@ def load(
     Args:
         source: Path to a PSI-MOD OBO file. If omitted, uses the bundled file.
         refresh: Download the latest OBO from HUPO-PSI (``download(force=True)``)
-            and load that. Ignored when ``source`` is given.
+            and load that. Cannot be combined with ``source``.
         include_obsolete: If True (default), include obsolete entries. Obsolete
             entries carry xref_remap redirects useful for cross-reference resolution.
             Pass False to exclude them.
 
     Returns:
         A PsiModDatabase; ``header_lines`` is kept whatever ``include_obsolete`` is.
+
+    Raises:
+        ValueError: if both ``source`` and ``refresh=True`` are given.
     """
     from psimodpy.parser import parse_obo
 
-    if source is not None:
-        db = parse_obo(source)
-    elif refresh:
+    if refresh:
+        if source is not None:
+            raise ValueError("pass either source or refresh=True, not both")
         from psimodpy import _download
 
         db = parse_obo(_download.download(force=True))
+    elif source is not None:
+        db = parse_obo(source)
     else:
         obo_path = importlib.resources.files("psimodpy.data").joinpath("PSI-MOD.obo")
         with importlib.resources.as_file(obo_path) as path:

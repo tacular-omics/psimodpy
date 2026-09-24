@@ -188,6 +188,11 @@ class PsiModEntry:
     """Citation list from the def: line without brackets, e.g. 'PubMed:18688235, RESID:AA0037'."""
 
     @property
+    def accession(self) -> str:
+        """The MOD accession, e.g. "MOD:00696" (the ``accession`` field of the REST/MCP wire model)."""
+        return f"MOD:{self.id:05d}"
+
+    @property
     def dict_composition(self) -> dict[str, int] | None:
         """Parse diff_formula into {element: count}. Returns None if no formula.
 

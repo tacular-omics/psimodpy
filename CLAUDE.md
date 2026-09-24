@@ -7,7 +7,7 @@ psimodpy is a typed Python library for the HUPO-PSI
 It parses the OBO file into frozen dataclasses and indexes them for lookup by ID,
 `MOD:NNNNN` accession, name, free-text search, amino-acid origin and `is_a`
 parents/children. The full ontology (`src/psimodpy/data/PSI-MOD.obo`, 2116 terms,
-1996 non-obsolete) is bundled, so the core package works offline and has **no
+1971 non-obsolete) is bundled, so the core package works offline and has **no
 runtime dependencies**.
 
 The optional `server` extra (`fastapi`, `uvicorn`, `mcp>=2.1.1,<3`) adds a REST API
@@ -154,7 +154,7 @@ From `psimodpy/__init__.py` (`__all__`):
 - Duplicate ids raise `PsimodError`. Duplicate names (PSI-MOD has two: desmosine,
   L-methionine (R)-sulfoxide): the first non-obsolete entry wins `get_by_name`.
 - `load()` includes obsolete terms (2116); `filter()` and `GET /api/entries` exclude
-  them by default (1996). Obsolete terms carry `xref_remap` (replacement id).
+  them by default (1971). Obsolete terms carry `xref_remap` (replacement id).
 - `get_by_origin` is exact and case-sensitive on single-letter codes. Crosslinks
   (`Crosslink(sites=("C", "C"))`) are indexed under each site; `"X"` means any residue.
 - PSI-MOD formulas are space-separated with isotopes as `(13)C`, e.g.
