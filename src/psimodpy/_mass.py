@@ -116,7 +116,7 @@ class MassIndex[E]:
         delta: float,
         *,
         tolerance: float,
-        unit: str,
+        tolerance_unit: str,
         site: str | None,
         position: str | None,
         error: type[Exception],
@@ -130,8 +130,8 @@ class MassIndex[E]:
             raise error(f"tolerance must be finite, got {tolerance!r}")
         # Only Da: a ppm window on a delta mass is ill-defined (ppm of the delta, or of the
         # peptide?). Adding a unit later is additive; loosening then tightening is not.
-        if not isinstance(unit, str) or unit != "da":
-            raise error(f"unknown unit {unit!r}: only 'da' is supported")
+        if not isinstance(tolerance_unit, str) or tolerance_unit != "da":
+            raise error(f"unknown tolerance_unit {tolerance_unit!r}: only 'da' is supported")
         tol = float(tolerance)
         site_query = parse_site(site, error) if site is not None else None
         position_key = parse_position(position, error) if position is not None else None
