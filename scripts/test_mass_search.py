@@ -201,6 +201,65 @@ def main() -> int:
             settle()
             check("number" in page.text_content("#mmsg") and len(ids()) == n_all, "bad mass reported, no filter")
 
+            # Malformed URLs: no filter, a message, no crash; a dead id is dropped from the URL.
+            for query, why in (
+                ("?mass=0x2A&tol=0.01&unit=da", "hex mass"),
+                ("?mass=Infinity&tol=0.01&unit=da", "Infinity mass"),
+                ("?mass=1e400&tol=0.01&unit=da", "overflowing mass"),
+                ("?mass=42.0106&tol=-1&unit=da", "negative tolerance"),
+                ("?mass=42.0106&tol=abc&unit=da", "text tolerance"),
+                ("?mass=42.0106&tol=10&unit=ppm&prec=-5", "negative precursor"),
+            ):
+                load(query)
+                page.select_option("#pp", "0")
+                check(
+                    len(ids()) == n_all and page.text_content("#mmsg") != "", f"malformed ({why}): no filter, message"
+                )
+            load("?id=99999999&mass=42.010565&tol=0.01&unit=da")
+            check("id=" not in page.url and "mass=" in page.url, f"unknown id dropped from URL: {page.url}")
+            check(not page.is_visible("#dvp"), "unknown id shows the list")
+
+            # Unit switch resets the tolerance to that unit's default, both ways.
+            load("?mass=42.010565&tol=0.02&unit=da")
+            page.select_option("#munit", "ppm")
+            check(page.input_value("#mtol") == "10", "Da 0.02 -> ppm resets tolerance to 10")
+            page.select_option("#munit", "da")
+            check(page.input_value("#mtol") == "0.01", "ppm -> Da resets tolerance to 0.01")
+
+            # Descending error sort keeps ties in library order (mass, then database order).
+            load("?mass=42.010565&tol=0.05&unit=da")
+            page.select_option("#pp", "0")
+            lib = db.search_mass(42.010565, tolerance=0.05)
+            groups: dict[float, list[str]] = {}
+            for e, err in lib:
+                groups.setdefault(round(abs(err), 9), []).append(CONFIG["id"](e))
+            exp_desc = [i for k in sorted(groups, reverse=True) for i in groups[k]]
+            page.click("th[data-col=_err]")
+            check(ids() == exp_desc, f"descending error sort keeps tie order ({len(exp_desc)} rows)")
+
+            # Back/forward: list -> detail -> list with another mass; back twice restores the first state.
+            load("?mass=42.010565&tol=0.01&unit=da")
+            page.select_option("#pp", "0")
+            n42 = len(ids())
+            page.click("#tbody tr.dr")
+            page.go_back()
+            page.wait_for_timeout(200)
+            check(not page.is_visible("#dvp") and "mass=42.010565" in page.url, "browser back closes detail")
+            page.go_forward()
+            page.wait_for_timeout(200)
+            check(page.is_visible("#dvp") and "id=" in page.url, "browser forward reopens detail")
+            page.click("#dvb")
+            page.fill("#mdelta", "79.966331")
+            settle()
+            page.go_back()
+            page.wait_for_timeout(200)
+            page.go_back()
+            page.wait_for_timeout(300)
+            page.select_option("#pp", "0")
+            check(
+                page.input_value("#mdelta") == "42.010565" and len(ids()) == n42, f"back twice restores 42 ({page.url})"
+            )
+
             check(not console, f"no console errors {console}")
             browser.close()
     finally:

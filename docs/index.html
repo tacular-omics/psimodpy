@@ -167,7 +167,8 @@ table.nomass .ec{display:none}
 </div>
 <script>
 'use strict';
-const MASS_CFG={mono:'diff_mono',avg:'diff_avg',lib:'psimodpy',note:'The library skips obsolete terms by default; use the Active only filter to match it.'};
+const MASS_CFG={mono:'diff_mono',avg:'diff_avg',lib:'psimodpy',note:'The library skips obsolete terms by default; use the Active only filter to match it.',
+  hasId:id=>BY_ID.has(Number(id))};
 let ALL=[],filtered=[],sortCol='id',sortDir=1,page=0,perPage=50;
 const BY_ID=new Map(),CHILDREN=new Map();
 const SRC={natural:'tg0',artifact:'tgr',artifactual:'tgr',hypothetical:'to0',none:'tgr'};
@@ -350,13 +351,15 @@ function updateBar(){
     const sp=th.querySelector('span');if(sp)sp.className=th.dataset.col===sortCol?(sortDir===1?'sa':'sd'):'si';
   });
 }
-// ---- Mass search: identical in psimodpy, unimodpy and uniprotptmpy; only MASS_CFG differs. ----
+// ---- Mass search: identical in psimodpy, unimodpy and uniprotptmpy; only MASS_CFG (fields, hasId) differs. ----
 // Same rule as the library's search_mass(): keep entries with |delta - mass| <= tol (+1e-9 relative
 // slack, edges inclusive), error = delta - mass, closest first, ties in mass then database order.
 const MS={on:false,delta:0,tolDa:0,unit:'da',prec:null,field:MASS_CFG.mono,err:new Map(),idx:new Map(),wasOn:false};
 const MASS_DEF_TOL={da:'0.01',ppm:'10'};
 function massEl(id){return document.getElementById(id);}
-function massNum(s){s=String(s??'').trim();if(s==='')return null;const v=Number(s);return Number.isFinite(v)?v:NaN;}
+// Plain decimals only (no hex, Infinity, blanks inside), like Python's float() minus inf/nan/underscores.
+const MASS_NUM_RE=/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
+function massNum(s){s=String(s??'').trim();if(s==='')return null;if(!MASS_NUM_RE.test(s))return NaN;const v=Number(s);return Number.isFinite(v)?v:NaN;}
 function massHelp(){
   return`Mass search: enter a signed delta mass in Da (e.g. 42.0106 or -18.0106). `
     +`Keeps entries whose ${MASS_CFG.mono} (Monoisotopic) or ${MASS_CFG.avg} (Average) is within the tolerance; `
@@ -375,8 +378,8 @@ function massInit(){
   let t;
   ['mdelta','mtol','mprec'].forEach(id=>massEl(id).addEventListener('input',()=>{clearTimeout(t);t=setTimeout(update,200);}));
   massEl('munit').addEventListener('change',()=>{
-    const u=massEl('munit').value,tl=massEl('mtol');
-    if(!tl.value.trim()||tl.value.trim()===MASS_DEF_TOL[u==='ppm'?'da':'ppm'])tl.value=MASS_DEF_TOL[u];
+    // A Da number is not a sensible ppm number (or back): reset to the unit's default.
+    massEl('mtol').value=MASS_DEF_TOL[massEl('munit').value];
     update();
   });
   massEl('mtype').addEventListener('change',update);
@@ -417,7 +420,8 @@ function massKeep(e){
   return true;
 }
 function massCmp(a,b){
-  return(Math.abs(MS.err.get(a))-Math.abs(MS.err.get(b))||a[MS.field]-b[MS.field]||MS.idx.get(a)-MS.idx.get(b))*sortDir;
+  // Only the error flips with the sort direction; ties stay in mass, then database, order.
+  return(Math.abs(MS.err.get(a))-Math.abs(MS.err.get(b)))*sortDir||a[MS.field]-b[MS.field]||MS.idx.get(a)-MS.idx.get(b);
 }
 function massCell(e){
   const err=MS.err.get(e);
@@ -427,7 +431,7 @@ function massCell(e){
 }
 function massUrl(id){
   const u=new URLSearchParams();
-  if(id===undefined)id=new URLSearchParams(location.search).get('id');
+  if(id===undefined){id=new URLSearchParams(location.search).get('id');if(id!=null&&!MASS_CFG.hasId(id))id=null;}
   if(id!=null)u.set('id',id);
   const q=massEl('q').value.trim();if(q)u.set('q',q);
   const d=massEl('mdelta').value.trim();
