@@ -77,6 +77,16 @@ td{padding:.55rem .9rem;border-bottom:1px solid #f3f4f6;vertical-align:middle}
 .dv-id{font-family:ui-monospace,monospace;color:#2563eb;font-weight:600;font-size:.9rem}
 .dv-nm{font-size:1.3rem;font-weight:700;margin-top:.25rem;color:#1a202c}
 .dv-bd{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;padding:1rem 1.25rem}
+.ms{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem}
+.ms label{font-size:.8rem;color:#374151;display:flex;align-items:center;gap:.3rem}
+.ms input{width:9rem;padding:.45rem .65rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.8rem;background:#fff;outline:none;color:#1a202c;font-family:ui-monospace,monospace}
+.ms input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px #dbeafe80}
+.ms input.bad{border-color:#ef4444}
+.ms select{padding:.45rem .65rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.8rem;background:#fff;outline:none;cursor:pointer;color:#374151}
+.ms select:focus{border-color:#3b82f6}
+.mi{cursor:help;color:#6b7280;border:1px solid #d1d5db;border-radius:999px;width:1.3rem;height:1.3rem;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;background:#fff}
+.mmsg{font-size:.78rem;color:#b91c1c}
+table.nomass .ec{display:none}
 @media(max-width:640px){header{padding:1rem}.hi{flex-direction:column}main{padding:0 .5rem}}
 </style>
 </head>
@@ -111,6 +121,15 @@ td{padding:.55rem .9rem;border-bottom:1px solid #f3f4f6;vertical-align:middle}
     </select>
     <select id="fsl"><option value="">All subsets</option><option value="slim">Slim subset only</option></select>
   </div>
+  <div class="ms" id="msb">
+    <label>Δ mass <input id="mdelta" type="text" inputmode="decimal" placeholder="e.g. 42.0106" autocomplete="off" spellcheck="false"></label>
+    <label>± <input id="mtol" type="text" inputmode="decimal" value="0.01" autocomplete="off" spellcheck="false" style="width:6rem"></label>
+    <select id="munit" aria-label="Tolerance unit"><option value="da">Da</option><option value="ppm">ppm</option></select>
+    <label id="mprecw" style="display:none">precursor <input id="mprec" type="text" inputmode="decimal" placeholder="mass (Da)" autocomplete="off" spellcheck="false"></label>
+    <select id="mtype" aria-label="Mass type"><option value="mono">Monoisotopic</option><option value="avg">Average</option></select>
+    <span class="mi" id="minfo" tabindex="0" role="note">?</span>
+    <span class="mmsg" id="mmsg" role="status"></span>
+  </div>
   <div class="bar">
     <span class="rc" id="rc">Loading…</span>
     <div class="pc">
@@ -121,12 +140,13 @@ td{padding:.55rem .9rem;border-bottom:1px solid #f3f4f6;vertical-align:middle}
     </div>
   </div>
   <div class="tw">
-    <table>
+    <table class="nomass">
       <thead><tr>
         <th data-col="id"><span class="si">ID</span></th>
         <th data-col="name"><span class="si">Name</span></th>
         <th>Origin</th>
         <th data-col="diff_mono" style="text-align:right"><span class="si">Δ Mono (Da)</span></th>
+        <th data-col="_err" class="ec" style="text-align:right"><span class="si" id="merrh">Δ error (Da)</span></th>
         <th>Formula</th>
         <th>Source</th>
         <th>Status</th>
@@ -147,6 +167,7 @@ td{padding:.55rem .9rem;border-bottom:1px solid #f3f4f6;vertical-align:middle}
 </div>
 <script>
 'use strict';
+const MASS_CFG={mono:'diff_mono',avg:'diff_avg',lib:'psimodpy',note:'The library skips obsolete terms by default; use the Active only filter to match it.'};
 let ALL=[],filtered=[],sortCol='id',sortDir=1,page=0,perPage=50;
 const BY_ID=new Map(),CHILDREN=new Map();
 const SRC={natural:'tg0',artifact:'tgr',artifactual:'tgr',hypothetical:'to0',none:'tgr'};
@@ -190,13 +211,15 @@ async function init(){
   }
   fill('for',[...origs].sort());
   fill('fsr',[...srcs].sort());
+  massInit();
   update();
   const qid=new URLSearchParams(location.search).get('id');
   if(qid){const e=BY_ID.get(Number(qid));if(e)showDetail(e);}
 }
 function fill(id,vals){const s=document.getElementById(id);vals.forEach(v=>{const o=document.createElement('option');o.value=o.textContent=v;s.appendChild(o);});}
-function update(){page=0;applyFilters();applySort();render();}
+function update(){page=0;applyFilters();applySort();render();massSync();}
 function applyFilters(){
+  massPrep();
   const q=document.getElementById('q').value.trim().toLowerCase();
   const fo=document.getElementById('for').value,fsr=document.getElementById('fsr').value;
   const fob=document.getElementById('fob').value,fsl=document.getElementById('fsl').value;
@@ -214,10 +237,12 @@ function applyFilters(){
       else{if(e.origin!==fo)return false;}
     }
     if(fsr&&e.source!==fsr)return false;
+    if(!massKeep(e))return false;
     return true;
   });
 }
 function applySort(){
+  if(sortCol==='_err'){filtered.sort(massCmp);return;}
   filtered.sort((a,b)=>{
     let av=a[sortCol],bv=b[sortCol];
     if(av==null)av=sortCol==='diff_mono'?Infinity:'';
@@ -229,7 +254,7 @@ function getPage(){if(!perPage)return filtered;return filtered.slice(page*perPag
 function render(){
   const tbody=document.getElementById('tbody');
   const rows=getPage();
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" class="nr">No entries match your search.</td></tr>';updateBar();return;}
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="8" class="nr">No entries match your search.</td></tr>';updateBar();return;}
   tbody.innerHTML='';
   for(const e of rows){
     const tr=document.createElement('tr');tr.className='dr';
@@ -240,6 +265,7 @@ function render(){
 <td class="nc">${x(e.name)}</td>
 <td>${fmtOrigin(e.origin)}</td>
 <td class="mc">${e.diff_mono!=null?e.diff_mono.toFixed(6):'<span style="color:#d1d5db">—</span>'}</td>
+${massCell(e)}
 <td class="fc">${e.proforma_formula?`<code>${x(e.proforma_formula)}</code>`:'<span style="color:#d1d5db">—</span>'}</td>
 <td>${e.source?`<span class="tag ${SRC[e.source]||'tgr'}">${x(e.source)}</span>`:'<span style="color:#d1d5db">—</span>'}</td>
 <td><div class="tags">${statTags.join('')||'<span style="color:#d1d5db">—</span>'}</div></td>`;
@@ -249,7 +275,7 @@ function render(){
   updateBar();
 }
 function openDetail(e){
-  history.pushState({id:e.id},'','?id='+e.id);
+  history.pushState({id:e.id},'',massUrl(String(e.id)));
   showDetail(e);
 }
 function showDetail(e){
@@ -271,7 +297,7 @@ function showDetail(e){
   document.title=e.name+' — psimodpy';
 }
 function closeDetail(){
-  history.pushState(null,'',location.pathname);
+  history.pushState(null,'',massUrl(null));
   document.getElementById('dvp').style.display='none';
   document.getElementById('lvw').style.display='';
   document.title='PSI-MOD Browser — psimodpy';
@@ -324,6 +350,106 @@ function updateBar(){
     const sp=th.querySelector('span');if(sp)sp.className=th.dataset.col===sortCol?(sortDir===1?'sa':'sd'):'si';
   });
 }
+// ---- Mass search: identical in psimodpy, unimodpy and uniprotptmpy; only MASS_CFG differs. ----
+// Same rule as the library's search_mass(): keep entries with |delta - mass| <= tol (+1e-9 relative
+// slack, edges inclusive), error = delta - mass, closest first, ties in mass then database order.
+const MS={on:false,delta:0,tolDa:0,unit:'da',prec:null,field:MASS_CFG.mono,err:new Map(),idx:new Map(),wasOn:false};
+const MASS_DEF_TOL={da:'0.01',ppm:'10'};
+function massEl(id){return document.getElementById(id);}
+function massNum(s){s=String(s??'').trim();if(s==='')return null;const v=Number(s);return Number.isFinite(v)?v:NaN;}
+function massHelp(){
+  return`Mass search: enter a signed delta mass in Da (e.g. 42.0106 or -18.0106). `
+    +`Keeps entries whose ${MASS_CFG.mono} (Monoisotopic) or ${MASS_CFG.avg} (Average) is within the tolerance; `
+    +`both edges are inclusive, the same rule as ${MASS_CFG.lib}'s search_mass() (which uses the monoisotopic mass and Da). `
+    +`Entries with no mass are hidden while a mass is entered. Δ error = your mass − entry mass. `
+    +`Da: an absolute window. ppm: a delta mass has no precursor of its own, so ppm is taken relative to the precursor `
+    +`mass you enter (the modified peptide's neutral mass, Da): tolerance in Da = ppm × precursor ÷ 1,000,000, `
+    +`and Δ error in ppm = error ÷ precursor × 1,000,000.`+(MASS_CFG.note?' '+MASS_CFG.note:'');
+}
+function massInit(){
+  ALL.forEach((e,i)=>MS.idx.set(e,i));
+  if(!MASS_CFG.avg)massEl('mtype').style.display='none';
+  const h=massHelp();massEl('minfo').title=h;massEl('minfo').setAttribute('aria-label',h);massEl('mdelta').title=h;
+  massEl('munit').querySelector('option[value=ppm]').title='ppm of the precursor mass you enter';
+  massFromUrl();
+  let t;
+  ['mdelta','mtol','mprec'].forEach(id=>massEl(id).addEventListener('input',()=>{clearTimeout(t);t=setTimeout(update,200);}));
+  massEl('munit').addEventListener('change',()=>{
+    const u=massEl('munit').value,tl=massEl('mtol');
+    if(!tl.value.trim()||tl.value.trim()===MASS_DEF_TOL[u==='ppm'?'da':'ppm'])tl.value=MASS_DEF_TOL[u];
+    update();
+  });
+  massEl('mtype').addEventListener('change',update);
+}
+function massPrep(){
+  const d=massNum(massEl('mdelta').value),t=massNum(massEl('mtol').value),p=massNum(massEl('mprec').value);
+  const unit=massEl('munit').value==='ppm'?'ppm':'da';
+  MS.unit=unit;
+  MS.field=massEl('mtype').value==='avg'&&MASS_CFG.avg?MASS_CFG.avg:MASS_CFG.mono;
+  MS.prec=p!=null&&p>0?p:null;
+  const tolBad=t==null||Number.isNaN(t)||t<0;
+  let msg='';MS.on=false;
+  if(Number.isNaN(d))msg='Mass must be a number, e.g. 42.0106 or -18.0106.';
+  else if(d!=null){
+    if(tolBad)msg='Tolerance must be a number ≥ 0.';
+    else if(unit==='ppm'&&MS.prec==null)msg='ppm needs a precursor mass (Da): enter it, or switch to Da.';
+    else{MS.on=true;MS.delta=d;MS.tolDa=unit==='ppm'?t*MS.prec/1e6:t;}
+  }
+  massEl('mdelta').classList.toggle('bad',Number.isNaN(d));
+  massEl('mtol').classList.toggle('bad',d!=null&&tolBad);
+  massEl('mprec').classList.toggle('bad',unit==='ppm'&&d!=null&&MS.prec==null);
+  massEl('mmsg').textContent=msg;
+  massEl('mprecw').style.display=unit==='ppm'?'':'none';
+  document.querySelector('.tw table').classList.toggle('nomass',!MS.on);
+  massEl('merrh').textContent='Δ error ('+unit.replace('da','Da')+(MS.field===MASS_CFG.avg?', avg':'')+')';
+  if(MS.on&&!MS.wasOn){sortCol='_err';sortDir=1;}
+  if(!MS.on&&sortCol==='_err'){sortCol='id';sortDir=1;}
+  MS.wasOn=MS.on;
+  MS.err.clear();
+}
+function massKeep(e){
+  if(!MS.on)return true;
+  const m=e[MS.field];
+  if(typeof m!=='number'||!Number.isFinite(m))return false;
+  const err=MS.delta-m,slack=1e-9*Math.max(1,Math.abs(MS.delta));
+  if(Math.abs(err)>MS.tolDa+slack)return false;
+  MS.err.set(e,err);
+  return true;
+}
+function massCmp(a,b){
+  return(Math.abs(MS.err.get(a))-Math.abs(MS.err.get(b))||a[MS.field]-b[MS.field]||MS.idx.get(a)-MS.idx.get(b))*sortDir;
+}
+function massCell(e){
+  const err=MS.err.get(e);
+  if(err==null)return'<td class="mc ec"></td>';
+  const v=MS.unit==='ppm'?(err/MS.prec*1e6).toFixed(2):err.toFixed(6);
+  return`<td class="mc ec">${err>0?'+':''}${v}</td>`;
+}
+function massUrl(id){
+  const u=new URLSearchParams();
+  if(id===undefined)id=new URLSearchParams(location.search).get('id');
+  if(id!=null)u.set('id',id);
+  const q=massEl('q').value.trim();if(q)u.set('q',q);
+  const d=massEl('mdelta').value.trim();
+  if(d){
+    u.set('mass',d);u.set('tol',massEl('mtol').value.trim());u.set('unit',massEl('munit').value);
+    const p=massEl('mprec').value.trim();if(massEl('munit').value==='ppm'&&p)u.set('prec',p);
+    if(massEl('mtype').value==='avg')u.set('mass_type','avg');
+  }
+  const s=u.toString();
+  return location.pathname+(s?'?'+s:'');
+}
+function massSync(){const url=massUrl();if(url!==location.pathname+location.search)history.replaceState(history.state,'',url);}
+function massFromUrl(){
+  const u=new URLSearchParams(location.search);
+  const unit=u.get('unit')==='ppm'?'ppm':'da';
+  const want={q:u.get('q')??'',mdelta:u.get('mass')??'',mtol:u.get('tol')??MASS_DEF_TOL[unit],munit:unit,
+    mprec:u.get('prec')??'',mtype:u.get('mass_type')==='avg'&&MASS_CFG.avg?'avg':'mono'};
+  let changed=false;
+  for(const[k,v]of Object.entries(want)){const el=massEl(k);if(el.value!==v){el.value=v;changed=true;}}
+  return changed;
+}
+// ---- end mass search ----
 function x(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 document.getElementById('dvb').addEventListener('click',closeDetail);
 window.addEventListener('popstate',()=>{
@@ -332,6 +458,7 @@ window.addEventListener('popstate',()=>{
   document.getElementById('dvp').style.display='none';
   document.getElementById('lvw').style.display='';
   document.title='PSI-MOD Browser — psimodpy';
+  if(massFromUrl())update();
 });
 let dt;
 document.getElementById('q').addEventListener('input',()=>{clearTimeout(dt);dt=setTimeout(update,200);});
