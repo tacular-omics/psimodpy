@@ -568,7 +568,7 @@ td.empty-row { padding: var(--space-5) var(--space-3); text-align: center; color
     </div>
     <div>
       <h2>Software</h2>
-      <p>Data exported with <a href="https://pypi.org/project/psimodpy/">psimodpy</a> when this page was deployed.</p>
+      <p>Data exported with <a href="https://pypi.org/project/psimodpy/">psimodpy</a><span id="pkg-version"></span> when this page was deployed.</p>
       <p>Related browsers: <a href="https://tacular-omics.github.io/unimodpy/">Unimod</a> ·
         <a href="https://tacular-omics.github.io/uniprotptmpy/">UniProt PTM</a></p>
       <p><a href="https://github.com/tacular-omics/psimodpy">psimodpy on GitHub</a> · MIT licence</p>
@@ -928,6 +928,15 @@ init().catch(e=>{
   $('rc').textContent='No data.';
 });
 // ---- end wiring ----
+</script>
+<script>
+// Package version for the footer: meta.json on GitHub Pages, /api/health on the hosted app.
+(async()=>{
+  for(const u of['meta.json','api/health']){
+    try{const r=await fetch(u);if(!r.ok)continue;const v=(await r.json()).version;
+      if(typeof v==='string'&&/^[\w.+-]+$/.test(v)){document.getElementById('pkg-version').textContent=' '+v;return;}}catch(e){}
+  }
+})();
 </script>
 </body>
 </html>
