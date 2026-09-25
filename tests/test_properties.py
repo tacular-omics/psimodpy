@@ -11,7 +11,8 @@ import psimodpy
 _DB = psimodpy.load()
 _IDS = sorted(e.id for e in _DB)
 _NAMES = [e.name for e in _DB]
-_SETTINGS = settings(max_examples=300, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+# Example count comes from the Hypothesis profile (tests/conftest.py): 50 by default, 300 thorough.
+_SETTINGS = settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 
 
 def _id_forms(n: int) -> st.SearchStrategy[object]:

@@ -251,6 +251,7 @@ def test_health_reports_dunder_version(monkeypatch: pytest.MonkeyPatch) -> None:
     assert r.json()["version"] == "9.9.9-test"
 
 
+@pytest.mark.slow
 def test_server_import_parses_obo_once() -> None:
     import subprocess
     import sys

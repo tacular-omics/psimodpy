@@ -103,41 +103,29 @@ class TestFormulaToHill:
 
 
 class TestFormulaOnEntries:
-    def test_dict_composition_phospho(self):
+    def test_dict_composition_phospho(self, db):
         """MOD:00046 DiffFormula 'C 0 H 0 N 0 O 3 P 1' → dict includes P:1."""
-        import psimodpy
-
-        db = psimodpy.load()
         entry = db.get_by_id(46)
         comp = entry.dict_composition
         assert comp is not None
         assert comp["P"] == 1
         assert comp["O"] == 3
 
-    def test_proforma_formula_phospho(self):
+    def test_proforma_formula_phospho(self, db):
         """MOD:00046 proforma_formula should be 'O3P'."""
-        import psimodpy
-
-        db = psimodpy.load()
         entry = db.get_by_id(46)
         pf = entry.proforma_formula
         assert pf is not None
         assert "O3" in pf
         assert "P" in pf
 
-    def test_dict_composition_none_when_missing(self):
+    def test_dict_composition_none_when_missing(self, db):
         """Root entry (MOD:00000) has no diff_formula → dict_composition is None."""
-        import psimodpy
-
-        db = psimodpy.load()
         root = db.get_by_id(0)
         assert root.dict_composition is None
 
-    def test_dict_formula_isotopic(self):
+    def test_dict_formula_isotopic(self, db):
         """Isotopic formula entries return correct dict."""
-        import psimodpy
-
-        db = psimodpy.load()
         isotopic = [e for e in db if e.formula and "(12)C" in e.formula]
         assert len(isotopic) > 0
         comp = isotopic[0].dict_formula
@@ -151,7 +139,7 @@ class TestFormulaOnEntries:
             for comp in (entry.dict_composition, entry.dict_formula):
                 assert not any(k.startswith("(") for k in comp or {}), entry.id
 
-    def test_hill_and_proforma_accept_both_key_styles(self):
+    def test_hill_and_proforma_accept_both_key_styles(self, db):
         assert formula_to_proforma({"13C": 4, "12C": 8, "H": 20}) == "[12C8][13C4]H20"
         assert formula_to_proforma({"H": -1, "N": -1, "18O": 1}) == "H-1N-1[18O]"
         assert formula_to_hill({"(13)C": 4, "(12)C": 8, "H": 20}) == "(12)C8(13)C4H20"
@@ -175,14 +163,14 @@ def _parse_proforma(formula: str) -> dict[str, int]:
 
 
 class TestFormulaToProforma:
-    def test_plain_matches_hill(self):
+    def test_plain_matches_hill(self, db):
         assert formula_to_proforma({"C": 3, "H": 5, "N": 1, "O": 1}) == "C3H5NO"
         assert formula_to_proforma({"C": 0, "H": -2, "O": -1}) == "H-2O-1"
 
-    def test_isotopes_use_brackets(self):
+    def test_isotopes_use_brackets(self, db):
         assert formula_to_proforma({"(12)C": 8, "(13)C": 4, "H": 20}) == "[12C8][13C4]H20"
 
-    def test_isotope_count_one_and_negative(self):
+    def test_isotope_count_one_and_negative(self, db):
         assert formula_to_proforma({"(13)C": 1, "(12)C": -1}) == "[12C-1][13C]"
 
     def test_mod_00402_deuterium(self, db):

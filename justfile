@@ -23,9 +23,13 @@ check:
     just ty
     just test
 
-# Run tests
+# Run tests (fast: slow tests skipped, 50 Hypothesis examples)
 test:
     uv run pytest tests
+
+# Run every test with the thorough Hypothesis profile, as CI does
+test-all:
+    RUN_SLOW=1 HYPOTHESIS_PROFILE=thorough uv run pytest tests
 
 # Remove build artifacts
 clean:
