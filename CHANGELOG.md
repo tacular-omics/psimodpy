@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] (2026-09-24)
+
 Additive only for the Python API: nothing that worked in 1.0 changes behaviour. The MCP list tools change shape (see Changed).
 
 ### Added
