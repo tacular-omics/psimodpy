@@ -72,6 +72,9 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: full-data sweeps and subprocess launches; skipped unless --run-slow or RUN_SLOW=1",
+]
 
 [tool.ruff]
 target-version = "py312"

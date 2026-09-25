@@ -36,7 +36,7 @@ def _old_search(db: PsiModDatabase, query: object) -> list:
 # ---------------------------------------------------------------- search
 
 
-def _queries(db: PsiModDatabase) -> list[str]:
+def _queries(db: PsiModDatabase, step: int = 7) -> list[str]:
     qs = [
         "",
         " ",
@@ -53,7 +53,7 @@ def _queries(db: PsiModDatabase) -> list[str]:
         "a\x00b",
     ]
     for i, entry in enumerate(db):
-        if i % 7:
+        if i % step:
             continue
         name = entry.name
         qs += [name, name.upper(), name[:3], name[len(name) // 2 :], name[1:-1]]
@@ -64,6 +64,13 @@ def _queries(db: PsiModDatabase) -> list[str]:
     return qs
 
 
+def test_search_matches_1_0_algorithm_on_bundled_data_sample(db: PsiModDatabase) -> None:
+    """Fast subset of the sweep below: every 101st entry plus the fixed edge-case queries."""
+    for q in _queries(db, step=101):
+        assert db.search(q) == _old_search(db, q), q
+
+
+@pytest.mark.slow
 def test_search_matches_1_0_algorithm_on_bundled_data(db: PsiModDatabase) -> None:
     for q in _queries(db):
         assert db.search(q) == _old_search(db, q), q

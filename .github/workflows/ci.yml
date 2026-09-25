@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+# Package-specific: CI runs the full suite. Locally, slow tests are skipped and
+# Hypothesis runs 50 examples (tests/conftest.py).
+env:
+  RUN_SLOW: "1"
+  HYPOTHESIS_PROFILE: thorough
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
