@@ -3,193 +3,603 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PSI-MOD Browser — psimodpy</title>
+<title>PSI-MOD browser: psimodpy</title>
+<meta name="description" content="Search the PSI-MOD protein modification ontology by name, origin residue or delta mass. Data from the psimodpy Python package; runs in your browser.">
+<!-- The page is served as a single file (GitHub Pages and the Vercel "/" route), so the shared
+     tacular-site.css is inlined below, unchanged, between the BEGIN/END markers. -->
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;color:#1a202c;min-height:100vh;font-size:14px}
-a{color:#3b82f6;text-decoration:none}
-a:hover{text-decoration:underline}
-code{font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;font-size:.9em}
-header{background:#1e293b;color:#f8fafc;padding:1.25rem 1.5rem}
-.hi{max-width:1300px;margin:0 auto;display:flex;gap:1rem;justify-content:space-between;flex-wrap:wrap;align-items:flex-start}
-h1{font-size:1.6rem;font-weight:700;letter-spacing:-.03em}
-.sub{color:#94a3b8;font-size:.85rem;margin-top:.2rem}
-.hm{display:flex;align-items:center;gap:.4rem;margin-top:.6rem;flex-wrap:wrap}
-.ct{background:#3b82f6;color:#fff;font-size:.75rem;font-weight:700;padding:.15rem .55rem;border-radius:999px}
-.pl{background:#334155;color:#cbd5e1;font-size:.75rem;padding:.15rem .55rem;border-radius:999px}
-.pl:hover{background:#475569;text-decoration:none;color:#f8fafc}
-.rel{color:#94a3b8;font-size:.8rem;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;align-self:flex-end}
-.rel a{color:#93c5fd}
-main{max-width:1300px;margin:1rem auto;padding:0 1rem}
-.tb{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem}
-.tb input[type=search]{flex:1;min-width:180px;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.875rem;background:#fff;outline:none;color:#1a202c}
-.tb input[type=search]:focus{border-color:#3b82f6;box-shadow:0 0 0 3px #dbeafe80}
-.tb select{padding:.45rem .65rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.8rem;background:#fff;outline:none;cursor:pointer;color:#374151}
-.tb select:focus{border-color:#3b82f6}
-.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;flex-wrap:wrap;gap:.4rem}
-.rc{font-size:.8rem;color:#6b7280}
-.pc{display:flex;align-items:center;gap:.4rem}
-.pc select{padding:.3rem .5rem;border:1px solid #d1d5db;border-radius:.4rem;font-size:.8rem;background:#fff;cursor:pointer}
-.pc button{padding:.3rem .65rem;border:1px solid #d1d5db;background:#fff;border-radius:.4rem;cursor:pointer;font-size:.8rem;color:#374151;line-height:1.2}
-.pc button:hover:not(:disabled){background:#f9fafb;border-color:#9ca3af}
-.pc button:disabled{opacity:.35;cursor:default}
-.pi{font-size:.8rem;color:#6b7280;min-width:60px;text-align:center}
-.tw{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;overflow:hidden;overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.84rem}
-thead{background:#f9fafb}
-th{padding:.65rem .9rem;text-align:left;font-weight:600;color:#374151;border-bottom:2px solid #e5e7eb;white-space:nowrap;user-select:none}
-th[data-col]{cursor:pointer}
-th[data-col]:hover{background:#f0f4f8}
-.si::after{content:" ⇕";color:#d1d5db}
-.sa::after{content:" ↑";color:#3b82f6}
-.sd::after{content:" ↓";color:#3b82f6}
-td{padding:.55rem .9rem;border-bottom:1px solid #f3f4f6;vertical-align:middle}
-.dr:hover td{background:#fafafa;cursor:pointer}
-.ic{font-family:ui-monospace,monospace;color:#2563eb;font-weight:600;font-size:.82rem;white-space:nowrap}
-.nc{font-weight:500}
-.fc{font-family:ui-monospace,monospace;color:#7c3aed;font-size:.82rem}
-.mc{font-family:ui-monospace,monospace;font-size:.82rem;text-align:right;white-space:nowrap}
-.tags{display:flex;flex-wrap:wrap;gap:.2rem}
-.tag{border-radius:.3rem;padding:.1rem .4rem;font-size:.72rem;white-space:nowrap;border:1px solid;line-height:1.4}
-.tb0{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
-.tg0{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
-.tp0{background:#faf5ff;color:#6d28d9;border-color:#ddd6fe}
-.to0{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
-.tgr{background:#f9fafb;color:#6b7280;border-color:#e5e7eb}
-.trd{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
-.term-link{display:inline-flex;align-items:baseline;gap:.35rem;text-decoration:none;cursor:pointer}
-.term-link:hover{text-decoration:none;background:#dbeafe;border-color:#93c5fd}
-.term-link .tid{font-family:ui-monospace,monospace;font-weight:600}
-.term-link .tnm{font-weight:500;white-space:normal}
-.term-list{display:flex;flex-wrap:wrap;gap:.3rem}
-.dg{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.65rem;margin-bottom:.5rem}
-.dl{font-size:.72rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem}
-.dv{font-size:.84rem;color:#1a202c;word-break:break-word}
-.mono{font-family:ui-monospace,monospace;font-size:.85em}
-.st{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.5rem;border:1px solid #e5e7eb}
-.st th{background:#f1f5f9;padding:.35rem .65rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb}
-.st td{padding:.3rem .65rem;border-bottom:1px solid #f1f5f9}
-.st tr:last-child td{border-bottom:none}
-.nr{text-align:center;padding:2.5rem;color:#9ca3af}
-.dv-back{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border:1px solid #d1d5db;border-radius:.5rem;background:#fff;cursor:pointer;font-size:.84rem;color:#374151;margin-bottom:.75rem;font-family:inherit}
-.dv-back:hover{background:#f9fafb;border-color:#9ca3af}
-.dv-hd{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;padding:1rem 1.25rem;margin-bottom:.75rem}
-.dv-id{font-family:ui-monospace,monospace;color:#2563eb;font-weight:600;font-size:.9rem}
-.dv-nm{font-size:1.3rem;font-weight:700;margin-top:.25rem;color:#1a202c}
-.dv-bd{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;padding:1rem 1.25rem}
-.ms{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem}
-.ms label{font-size:.8rem;color:#374151;display:flex;align-items:center;gap:.3rem}
-.ms input{width:9rem;padding:.45rem .65rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.8rem;background:#fff;outline:none;color:#1a202c;font-family:ui-monospace,monospace}
-.ms input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px #dbeafe80}
-.ms input.bad{border-color:#ef4444}
-.ms select{padding:.45rem .65rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.8rem;background:#fff;outline:none;cursor:pointer;color:#374151}
-.ms select:focus{border-color:#3b82f6}
-.mi{cursor:help;color:#6b7280;border:1px solid #d1d5db;border-radius:999px;width:1.3rem;height:1.3rem;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;background:#fff}
-.mmsg{font-size:.78rem;color:#b91c1c}
-table.nomass .ec{display:none}
-@media(max-width:640px){header{padding:1rem}.hi{flex-direction:column}main{padding:0 .5rem}}
+/* BEGIN tacular-site.css */
+/* ==========================================================================
+   tacular-site.css — shared base for the tacular-omics Pyodide web tools.
+   Copy as-is into each site (same filename). Put site rules in the site's own
+   CSS file, loaded after this one. Do not fork the tokens.
+   ========================================================================== */
+
+/* ---------- 1. Tokens ---------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --fs-base: 15px;
+  --fs-small: 0.867rem;   /* ~13px */
+  --fs-xsmall: 0.8rem;    /* ~12px */
+  --lh: 1.5;
+
+  --bg: #fbfbfa;          /* page */
+  --surface: #ffffff;     /* panels, tables, plots */
+  --surface-2: #f3f4f5;   /* table header, summary tiles, code */
+  --text: #1b1d1f;
+  --text-muted: #53595f;  /* AA on --bg and --surface */
+  --border: #d9dcdf;
+  --border-strong: #8a9096;
+
+  --accent: #1f5f99;
+  --accent-hover: #174a78;
+  --accent-contrast: #ffffff;
+  --accent-soft: #e7eff7;
+  --focus: #1f5f99;
+
+  --error: #b3261e;    --error-bg: #fbeceb;
+  --warning: #8a5a00;  --warning-bg: #fbf3e2;
+  --success: #1e6b34;  --success-bg: #e9f4ec;
+  --info: #1f5f99;     --info-bg: #e7eff7;
+
+  --radius: 4px;
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+  --space-4: 1rem;    --space-5: 1.5rem; --space-6: 2rem;
+  --maxw: 1200px;
+  --gutter: 16px;
+}
+
+/* Dark mode: same token names, darker values. Follows the OS unless a page sets
+   data-theme="light" on <html>; data-theme="dark" forces it. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #16181a; --surface: #1d2023; --surface-2: #26292d;
+    --text: #e6e8ea; --text-muted: #a3a9af;
+    --border: #363a3f; --border-strong: #6b7178;
+    --accent: #7fb3e6; --accent-hover: #a5caef; --accent-contrast: #0d1b28;
+    --accent-soft: #1d2d3d; --focus: #7fb3e6;
+    --error: #f2968f;   --error-bg: #3a1f1d;
+    --warning: #e3b55c; --warning-bg: #352a14;
+    --success: #7cc98f; --success-bg: #1a3322;
+    --info: #7fb3e6;    --info-bg: #1d2d3d;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #16181a; --surface: #1d2023; --surface-2: #26292d;
+  --text: #e6e8ea; --text-muted: #a3a9af;
+  --border: #363a3f; --border-strong: #6b7178;
+  --accent: #7fb3e6; --accent-hover: #a5caef; --accent-contrast: #0d1b28;
+  --accent-soft: #1d2d3d; --focus: #7fb3e6;
+  --error: #f2968f;   --error-bg: #3a1f1d;
+  --warning: #e3b55c; --warning-bg: #352a14;
+  --success: #7cc98f; --success-bg: #1a3322;
+  --info: #7fb3e6;    --info-bg: #1d2d3d;
+}
+
+/* ---------- 2. Reset and typography ------------------------------------ */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: var(--fs-base); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+  background: var(--bg); color: var(--text);
+  font-family: var(--font-sans); line-height: var(--lh);
+}
+[hidden] { display: none !important; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 0 0 var(--space-2); }
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1rem; }
+h4 { font-size: 0.933rem; }
+p { margin: 0 0 var(--space-3); }
+p:last-child { margin-bottom: 0; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:hover { color: var(--accent-hover); }
+code, kbd, samp, pre, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+code { background: var(--surface-2); padding: 0 0.25em; border-radius: 3px; overflow-wrap: anywhere; }
+pre { background: var(--surface-2); padding: var(--space-3); border-radius: var(--radius); overflow: auto; }
+abbr[title] { text-decoration: underline dotted; cursor: help; }
+small, .small { font-size: var(--fs-small); }
+.muted { color: var(--text-muted); }
+.num { font-variant-numeric: tabular-nums; }
+sub, sup { line-height: 0; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
+}
+
+/* ---------- 3. Layout ---------------------------------------------------- */
+.container { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter); }
+main { flex: 1; padding: var(--space-4) 0 var(--space-6); }
+.stack > * + * { margin-top: var(--space-4); }
+.row { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); align-items: flex-end; }
+.cluster { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+@media (min-width: 900px) {
+  .split { grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); align-items: start; }
+}
+
+/* A plain bordered block. Do not nest panels inside panels. */
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-4);
+}
+.panel > h2, .panel > h3 { margin-bottom: var(--space-3); }
+.panel-head {
+  display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline;
+  justify-content: space-between; margin-bottom: var(--space-3);
+}
+.panel-head > h2, .panel-head > h3 { margin: 0; }
+section + section { margin-top: var(--space-4); }
+
+/* ---------- 4. Header and footer ---------------------------------------- */
+.site-header { background: var(--surface); border-bottom: 1px solid var(--border); }
+.site-header .container {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-2) var(--space-5); padding-top: var(--space-3); padding-bottom: var(--space-3);
+}
+.site-title { margin: 0; font-size: 1.25rem; }
+.site-title a { color: inherit; text-decoration: none; }
+.site-desc { margin: var(--space-1) 0 0; color: var(--text-muted); font-size: var(--fs-small); max-width: 72ch; }
+.site-links { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); font-size: var(--fs-small); padding-top: 0.2rem; }
+.site-links a { text-decoration: none; }
+.site-links a:hover { text-decoration: underline; }
+
+.site-footer {
+  border-top: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); font-size: var(--fs-small);
+  padding: var(--space-4) 0 var(--space-5);
+}
+.site-footer h2 { font-size: 0.933rem; color: var(--text); margin-bottom: var(--space-1); }
+.site-footer .footer-grid { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 760px) { .site-footer .footer-grid { grid-template-columns: 2fr 1fr; } }
+.site-footer p { margin-bottom: var(--space-2); }
+.cite-text { color: var(--text); overflow-wrap: anywhere; }
+.versions { font-family: var(--font-mono); font-size: var(--fs-xsmall); }
+
+/* ---------- 5. Forms ----------------------------------------------------- */
+fieldset {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin: 0; padding: var(--space-3) var(--space-4) var(--space-4); min-width: 0;
+}
+legend { font-weight: 600; padding: 0 var(--space-1); }
+/* A fieldset used only to group checkboxes/radios inline, without a box. */
+fieldset.plain { border: 0; padding: 0; }
+fieldset.plain > legend { padding: 0; margin-bottom: var(--space-1); font-weight: 500; font-size: var(--fs-small); }
+
+.field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.field > label, .label { font-weight: 500; font-size: var(--fs-small); }
+.field .help, .help { color: var(--text-muted); font-size: var(--fs-xsmall); margin: 0; }
+.field-error { color: var(--error); font-size: var(--fs-small); margin: 0; }
+.field-error::before { content: "Error: "; font-weight: 600; }
+
+input[type="text"], input[type="number"], input[type="search"], input[type="url"],
+input:not([type]), select, textarea {
+  font: inherit; font-size: 0.933rem; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 0.35rem 0.5rem; min-height: 2.1rem; max-width: 100%;
+}
+textarea { min-height: 6rem; resize: vertical; width: 100%; }
+input.mono, textarea.mono { font-family: var(--font-mono); }
+input[type="number"] { font-variant-numeric: tabular-nums; width: 7rem; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; border-color: var(--focus); }
+input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--error); }
+input:disabled, select:disabled, textarea:disabled { opacity: 0.6; cursor: not-allowed; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width: 1rem; height: 1rem; margin: 0; }
+input[type="range"] { accent-color: var(--accent); width: 10rem; max-width: 100%; }
+
+/* Inline checkbox/radio: <label class="check"><input type="checkbox"> b</label> */
+.check { display: inline-flex; align-items: center; gap: 0.35rem; margin-right: var(--space-3); white-space: nowrap; cursor: pointer; }
+.checks { display: flex; flex-wrap: wrap; row-gap: var(--space-1); }
+/* Range slider with its live value: <div class="range"><input type=range><output></output></div> */
+.range { display: flex; align-items: center; gap: var(--space-2); }
+.range output { font-family: var(--font-mono); font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
+
+/* ---------- 6. Buttons --------------------------------------------------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  font: inherit; font-size: 0.933rem; font-weight: 500; line-height: 1.2;
+  padding: 0.4rem 0.85rem; min-height: 2.1rem; border-radius: var(--radius);
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.btn:hover { background: var(--surface-2); color: var(--text); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-contrast); }
+.btn-small { font-size: var(--fs-small); padding: 0.2rem 0.55rem; min-height: 1.75rem; }
+.btn-link { border: 0; background: none; color: var(--accent); padding: 0; min-height: 0; text-decoration: underline; font-weight: 400; }
+.btn-link:hover { background: none; color: var(--accent-hover); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- 7. Tables ---------------------------------------------------- */
+/* Wrap every results table: <div class="table-wrap"><table class="data">…</table></div>.
+   The wrapper scrolls (both axes) so the page never scrolls sideways. */
+.table-wrap {
+  overflow: auto; max-height: 32rem; max-width: 100%;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+}
+.table-wrap.tall { max-height: 48rem; }
+.table-wrap.auto { max-height: none; }
+table.data { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--fs-small); }
+table.data th, table.data td {
+  padding: 0.3rem 0.6rem; text-align: left; vertical-align: baseline;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+table.data thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface-2); font-weight: 600; color: var(--text);
+  border-bottom: 1px solid var(--border-strong);
+}
+table.data tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--surface-2) 45%, var(--surface)); }
+table.data tbody tr:hover td { background: var(--accent-soft); }
+table.data tbody tr:last-child td { border-bottom: 0; }
+/* Numbers: right-aligned, tabular, monospace. Mark cells and their header with .num. */
+table.data .num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+table.data .seq, table.data .mono { font-family: var(--font-mono); }
+table.data .mono, table.data .seq, table.data .num { font-size: inherit; }
+table.data th.num { font-family: inherit; }
+table.data td.wrap { white-space: normal; }
+table.data tr.dim td { color: var(--text-muted); }
+table.data caption { caption-side: top; text-align: left; font-size: var(--fs-small); color: var(--text-muted); padding: var(--space-2); }
+/* Sortable headers: <th aria-sort="none"><button class="th-sort">m/z</button></th> */
+.th-sort { font: inherit; font-weight: 600; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+.th-sort::after { content: " \2195"; color: var(--text-muted); font-weight: 400; }
+th[aria-sort="ascending"] .th-sort::after { content: " \2191"; color: var(--text); }
+th[aria-sort="descending"] .th-sort::after { content: " \2193"; color: var(--text); }
+
+/* Key/value summary: <dl class="stats"><div><dt>Mass (Da)</dt><dd>799.36</dd></div>…</dl> */
+/* Items grow to fill each row; the -1px margins collapse the hairlines between them. */
+.stats { display: flex; flex-wrap: wrap; margin: 0; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.stats > div { flex: 1 1 9.5rem; min-width: 0; padding: var(--space-2) var(--space-3);
+  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 0 -1px -1px 0; }
+.stats dt { font-size: var(--fs-xsmall); color: var(--text-muted); }
+.stats dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1rem; overflow-wrap: anywhere; }
+
+/* ---------- 8. Alerts, status, empty states ----------------------------- */
+/* <p class="alert alert-error" role="alert"><strong>Error:</strong> plain words + the fix</p> */
+.alert {
+  --alert-c: var(--info);
+  border: 1px solid var(--border); border-left: 4px solid var(--alert-c); border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3); margin: 0; font-size: var(--fs-small);
+  color: var(--text); background: var(--info-bg); overflow-wrap: anywhere;
+}
+.alert > strong:first-child { color: var(--alert-c); }
+.alert-error { --alert-c: var(--error); background: var(--error-bg); }
+.alert-warning { --alert-c: var(--warning); background: var(--warning-bg); }
+.alert-success { --alert-c: var(--success); background: var(--success-bg); }
+
+/* Runtime status line: spinner + text + optional <progress>. Use role="status". */
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--fs-small); color: var(--text-muted); }
+.status[data-state="ready"] { color: var(--success); }
+.status[data-state="error"] { color: var(--error); }
+.status progress { width: 8rem; height: 0.5rem; accent-color: var(--accent); }
+.spinner {
+  width: 0.9rem; height: 0.9rem; flex: none; border-radius: 50%;
+  border: 2px solid var(--border-strong); border-top-color: var(--accent);
+  animation: tacular-spin 0.8s linear infinite;
+}
+.status[data-state="ready"] .spinner, .status[data-state="error"] .spinner,
+.status[data-state="ready"] progress, .status[data-state="error"] progress { display: none; }
+@keyframes tacular-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+/* A result region waiting for data: <div aria-busy="true">. */
+[aria-busy="true"] { opacity: 0.6; transition: opacity 0.15s; }
+
+.empty {
+  color: var(--text-muted); font-size: var(--fs-small); padding: var(--space-4);
+  border: 1px dashed var(--border-strong); border-radius: var(--radius); background: var(--surface);
+}
+
+/* ---------- 9. Details / summary ---------------------------------------- */
+details { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+details > summary {
+  cursor: pointer; padding: var(--space-2) var(--space-3); font-weight: 500; font-size: 0.933rem;
+  list-style-position: inside;
+}
+details > summary:hover { color: var(--accent-hover); }
+details[open] > summary { border-bottom: 1px solid var(--border); }
+details > .details-body { padding: var(--space-3); }
+/* "Advanced options" inside a form: lighter, no box. */
+details.advanced { border: 0; background: none; }
+details.advanced > summary { padding: var(--space-1) 0; color: var(--accent); font-size: var(--fs-small); }
+details.advanced[open] > summary { border-bottom: 0; }
+details.advanced > .details-body { padding: var(--space-2) 0 0; }
+/* "About this tool / Methods": prose. */
+details.about .details-body { font-size: var(--fs-small); max-width: 80ch; }
+details.about .details-body ul { padding-left: 1.2rem; margin: 0 0 var(--space-3); }
+
+/* ---------- 10. Tabs ----------------------------------------------------- */
+/* <nav class="tabs" role="tablist"><a class="tab" role="tab" aria-selected="true">…</a></nav> */
+.tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border-strong);
+  overflow-x: auto; scrollbar-width: thin; margin-bottom: var(--space-4);
+}
+.tab {
+  flex: none; padding: var(--space-2) var(--space-4); margin-bottom: -1px;
+  font-weight: 500; font-size: 0.933rem; color: var(--text-muted); text-decoration: none;
+  border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0;
+  background: none; cursor: pointer; font-family: inherit;
+}
+.tab:hover { color: var(--text); background: var(--surface-2); }
+.tab[aria-selected="true"], .tab.active {
+  color: var(--text); background: var(--surface);
+  border-color: var(--border-strong); border-bottom: 1px solid var(--surface);
+}
+.tab-panel:focus-visible { outline: none; }
+
+/* ---------- 11. Plots ---------------------------------------------------- */
+.plot { width: 100%; min-height: 320px; background: var(--surface); }
+.plot-wrap { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: var(--space-2); }
+
+/* ---------- 12. Small screens (down to 360px) --------------------------- */
+@media (max-width: 600px) {
+  :root { --gutter: 12px; }
+  html { font-size: 14.5px; }
+  .panel { padding: var(--space-3); }
+  fieldset { padding: var(--space-2) var(--space-3) var(--space-3); }
+  .tab { padding: var(--space-2) var(--space-3); }
+  .row { gap: var(--space-3); }
+  .stats > div { flex-basis: 40%; }
+  .table-wrap { max-height: 24rem; }
+}
+
+/* ---------- 13. Print ---------------------------------------------------- */
+@media print {
+  .site-links, .tabs, .btn, details.advanced, .status { display: none !important; }
+  .table-wrap { max-height: none; overflow: visible; border: 0; }
+  body { background: #fff; color: #000; }
+}
+/* END tacular-site.css */
+</style>
+<style>
+/* ---- Ontology browser rules: identical in psimodpy, unimodpy and uniprotptmpy docs/index.html ---- */
+#controls { border: 0; padding: 0; margin: 0; min-width: 0; }
+.search-panel { margin: var(--space-3) 0 var(--space-4); }
+.search-panel .row + .row, .search-panel .row + fieldset, .search-panel fieldset + .cluster { margin-top: var(--space-3); }
+.field-grow { flex: 1 1 20rem; }
+.field-grow input { width: 100%; }
+.mass-fields input[type="text"] { width: 8.5rem; font-family: var(--font-mono); }
+#mdelta { width: 10rem; }
+#mmsg { margin-top: var(--space-2); }
+#mmsg:empty { display: none; }
+.results-head .count { color: var(--text-muted); font-size: var(--fs-small); margin: 0; }
+.pager { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--fs-small); }
+.pager label { color: var(--text-muted); }
+#pi { min-width: 4ch; text-align: center; color: var(--text-muted); }
+table.data tr.dr { cursor: pointer; }
+table.data td.ic a { font-family: var(--font-mono); font-weight: 600; text-decoration: none; }
+table.data td.ic a:hover { text-decoration: underline; }
+table.data td.nc { white-space: normal; min-width: 14rem; }
+table.data td.fc { font-family: var(--font-mono); }
+table.nomass .ec { display: none; }
+.tags { display: flex; flex-wrap: wrap; gap: 0.2rem; }
+.tag {
+  display: inline-block; padding: 0 0.35rem; border: 1px solid var(--border); border-radius: 3px;
+  background: var(--surface-2); color: var(--text); font-size: var(--fs-xsmall); line-height: 1.5; white-space: nowrap;
+}
+.tag.warn { color: var(--error); background: var(--error-bg); border-color: currentColor; }
+.none { color: var(--text-muted); }
+td.empty-row { padding: var(--space-5) var(--space-3); text-align: center; color: var(--text-muted); white-space: normal; }
+.detail-head { margin: var(--space-3) 0 var(--space-4); }
+.detail-head .acc { font-family: var(--font-mono); color: var(--text-muted); margin: 0; }
+.detail-head h2 { font-size: 1.35rem; margin: 0.1rem 0 0; }
+.detail-body > * + * { margin-top: var(--space-4); }
+.detail-body h3 { margin-bottom: var(--space-2); }
+.kv { display: grid; grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr); gap: var(--space-1) var(--space-4); margin: 0; font-size: var(--fs-small); }
+.kv dt { color: var(--text-muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.term-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; font-size: var(--fs-small); }
+.term-list a .tid { font-family: var(--font-mono); margin-right: 0.5rem; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+@media (min-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.about-block { margin-top: var(--space-4); }
+@media (max-width: 600px) {
+  .field-grow { flex-basis: 100%; }
+  .kv { grid-template-columns: minmax(0, 1fr); }
+  .kv dd { margin-bottom: var(--space-2); }
+}
 </style>
 </head>
 <body>
-<header>
-  <div class="hi">
+<header class="site-header">
+  <div class="container">
     <div>
-      <h1>psimodpy</h1>
-      <p class="sub">PSI-MOD protein modification ontology</p>
-      <div class="hm">
-        <span class="ct" id="ec">loading…</span>
-        <a class="pl" href="https://pypi.org/project/psimodpy/" target="_blank" rel="noopener">PyPI</a>
-        <a class="pl" href="https://github.com/tacular-omics/psimodpy" target="_blank" rel="noopener">GitHub</a>
-      </div>
+      <h1 class="site-title"><a href="./">PSI-MOD browser</a></h1>
+      <p class="site-desc">Search the <a href="https://github.com/HUPO-PSI/psi-mod-CV">PSI-MOD</a> protein modification
+        ontology by name, origin residue or delta mass, and follow parent/child terms. The data is the PSI-MOD release
+        bundled with the psimodpy Python package; the page runs in your browser and sends nothing anywhere.</p>
     </div>
-    <nav class="rel">
-      <span>Related:</span>
-      <a href="https://tacular-omics.github.io/unimodpy/">unimodpy</a>
-      <a href="https://tacular-omics.github.io/uniprotptmpy/">uniprotptmpy</a>
+    <nav class="site-links" aria-label="Project links">
+      <a href="https://github.com/tacular-omics/psimodpy#readme">Docs</a>
+      <a href="https://psimod.tacular.dev/docs">REST API</a>
+      <a href="https://github.com/tacular-omics/psimodpy">GitHub</a>
+      <a href="#cite">Cite</a>
     </nav>
   </div>
 </header>
-<main id="lvw">
-  <div class="tb">
-    <input type="search" id="q" placeholder="Search name, ID, definition, synonym…" autocomplete="off">
-    <select id="for"><option value="">All origins</option></select>
-    <select id="fsr"><option value="">All sources</option></select>
-    <select id="fob">
-      <option value="active">Active only</option>
-      <option value="all">All entries</option>
-      <option value="obsolete">Obsolete only</option>
-    </select>
-    <select id="fsl"><option value="">All subsets</option><option value="slim">Slim subset only</option></select>
-  </div>
-  <div class="ms" id="msb">
-    <label>Δ mass <input id="mdelta" type="text" inputmode="decimal" placeholder="e.g. 42.0106" autocomplete="off" spellcheck="false"></label>
-    <label>± <input id="mtol" type="text" inputmode="decimal" value="0.01" autocomplete="off" spellcheck="false" style="width:6rem"></label>
-    <select id="munit" aria-label="Tolerance unit"><option value="da">Da</option><option value="ppm">ppm</option></select>
-    <label id="mprecw" style="display:none">precursor <input id="mprec" type="text" inputmode="decimal" placeholder="mass (Da)" autocomplete="off" spellcheck="false"></label>
-    <select id="mtype" aria-label="Mass type"><option value="mono">Monoisotopic</option><option value="avg">Average</option></select>
-    <span class="mi" id="minfo" tabindex="0" role="note">?</span>
-    <span class="mmsg" id="mmsg" role="status"></span>
-  </div>
-  <div class="bar">
-    <span class="rc" id="rc">Loading…</span>
-    <div class="pc">
-      <select id="pp"><option value="50">50/page</option><option value="100">100/page</option><option value="250">250/page</option><option value="0">All</option></select>
-      <button id="pv" disabled>‹</button>
-      <span class="pi" id="pi"></span>
-      <button id="nx" disabled>›</button>
+
+<main>
+  <div class="container">
+    <p id="runtime" class="status" role="status" aria-live="polite" data-state="loading">
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="ec">Loading term data…</span>
+    </p>
+
+    <div id="lvw">
+      <section class="panel search-panel" aria-labelledby="search-heading">
+        <h2 id="search-heading" class="visually-hidden">Search</h2>
+        <fieldset id="controls" disabled>
+          <div class="row">
+            <div class="field field-grow">
+              <label for="q">Search text</label>
+              <input type="search" id="q" placeholder="e.g. phospho, MOD:00046, acetyl" autocomplete="off" aria-describedby="q-help">
+              <p id="q-help" class="help">Matches the ID, name, definition and synonyms (case-insensitive substring).</p>
+            </div>
+            <div class="field">
+              <label for="for">Origin residue</label>
+              <select id="for"><option value="">Any</option></select>
+            </div>
+            <div class="field">
+              <label for="fsr">Source</label>
+              <select id="fsr"><option value="">Any</option></select>
+            </div>
+            <div class="field">
+              <label for="fob">Status</label>
+              <select id="fob">
+                <option value="active">Active terms only</option>
+                <option value="all">Active and obsolete</option>
+                <option value="obsolete">Obsolete terms only</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fsl">Subset</label>
+              <select id="fsl"><option value="">All terms</option><option value="slim">PSI-MOD slim only</option></select>
+            </div>
+          </div>
+          <!-- Mass search controls: identical in the three browsers. -->
+          <fieldset class="plain mass-fields">
+            <legend>Delta-mass search</legend>
+            <div class="row">
+              <div class="field">
+                <label for="mdelta">Δ mass (Da)</label>
+                <input id="mdelta" type="text" inputmode="decimal" placeholder="e.g. 42.0106" autocomplete="off" spellcheck="false" aria-describedby="mmsg mdelta-help">
+              </div>
+              <div class="field">
+                <label for="mtol">Tolerance (±)</label>
+                <input id="mtol" type="text" inputmode="decimal" value="0.01" autocomplete="off" spellcheck="false" aria-describedby="mmsg">
+              </div>
+              <div class="field">
+                <label for="munit">Tolerance unit</label>
+                <select id="munit"><option value="da">Da</option><option value="ppm">ppm</option></select>
+              </div>
+              <div class="field" id="mprecw" style="display:none">
+                <label for="mprec">Precursor mass (Da)</label>
+                <input id="mprec" type="text" inputmode="decimal" placeholder="e.g. 1000" autocomplete="off" spellcheck="false" aria-describedby="mmsg">
+              </div>
+              <div class="field">
+                <label for="mtype">Mass type</label>
+                <select id="mtype"><option value="mono">Monoisotopic</option><option value="avg">Average</option></select>
+              </div>
+            </div>
+            <p id="mdelta-help" class="help">Signed mass shift, e.g. <code>79.9663</code> or <code>-18.0106</code>. Hits are sorted by |Δ error|, closest first; see Methods below.</p>
+            <p id="mmsg" class="field-error" role="status"></p>
+          </fieldset>
+          <div class="cluster">
+            <button id="mexample" type="button" class="btn btn-small">Load example</button>
+            <span class="help">Phosphorylation, +79.966331 Da ± 0.01 Da.</span>
+          </div>
+        </fieldset>
+      </section>
+
+      <section class="panel" aria-labelledby="results-heading">
+        <div class="panel-head results-head">
+          <div>
+            <h2 id="results-heading">Terms</h2>
+            <p class="count" id="rc" aria-live="polite">Loading…</p>
+          </div>
+          <div class="pager">
+            <button id="csv" type="button" class="btn btn-small">Download CSV</button>
+            <label for="pp">Rows per page</label>
+            <select id="pp"><option value="50">50</option><option value="100">100</option><option value="250">250</option><option value="0">All</option></select>
+            <button id="pv" type="button" class="btn btn-small" disabled aria-label="Previous page">Previous</button>
+            <span id="pi"></span>
+            <button id="nx" type="button" class="btn btn-small" disabled aria-label="Next page">Next</button>
+          </div>
+        </div>
+        <div class="table-wrap tall">
+          <table class="data nomass" id="tbl">
+            <thead><tr>
+              <th data-col="id" aria-sort="ascending"><button type="button" class="th-sort">ID</button></th>
+              <th data-col="name" aria-sort="none"><button type="button" class="th-sort">Name</button></th>
+              <th>Origin</th>
+              <th data-col="diff_mono" class="num" aria-sort="none"><button type="button" class="th-sort">Δ mass, mono (Da)</button></th>
+              <th data-col="_err" class="num ec" aria-sort="none"><button type="button" class="th-sort" id="merrh">Δ error (Da)</button></th>
+              <th>Δ formula</th>
+              <th>Source</th>
+              <th>Status</th>
+            </tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <details class="about about-block">
+        <summary>About this tool / Methods</summary>
+        <div class="details-body">
+          <p>Each row is one term of the PSI-MOD ontology (the <code>PSI-MOD.obo</code> release bundled with psimodpy,
+            loaded with <code>psimodpy.load()</code>, obsolete terms included). Obsolete terms are hidden unless you
+            change the Status filter.</p>
+          <ul>
+            <li><strong>Δ mass, mono</strong>: the monoisotopic mass difference of the modification (<code>DiffMono</code>
+              in the OBO file, <code>entry.diff_mono</code>). Average: <code>DiffAvg</code>.</li>
+            <li><strong>Δ formula</strong>: the difference formula (<code>DiffFormula</code>) in ProForma Hill notation
+              (<code>entry.proforma_formula</code>).</li>
+            <li><strong>Origin</strong>: the residue the modification occurs on; crosslinks list each site.
+              <strong>Source</strong>: natural, artifact or hypothetical, as annotated in PSI-MOD.</li>
+          </ul>
+          <p id="minfo"></p>
+        </div>
+      </details>
     </div>
-  </div>
-  <div class="tw">
-    <table class="nomass">
-      <thead><tr>
-        <th data-col="id"><span class="si">ID</span></th>
-        <th data-col="name"><span class="si">Name</span></th>
-        <th>Origin</th>
-        <th data-col="diff_mono" style="text-align:right"><span class="si">Δ Mono (Da)</span></th>
-        <th data-col="_err" class="ec" style="text-align:right"><span class="si" id="merrh">Δ error (Da)</span></th>
-        <th>Formula</th>
-        <th>Source</th>
-        <th>Status</th>
-      </tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
+
+    <section id="dvp" hidden aria-labelledby="dvt">
+      <button class="btn btn-small" id="dvb" type="button">Back to results</button>
+      <div class="detail-head">
+        <p class="acc" id="dvi"></p>
+        <h2 id="dvt"></h2>
+      </div>
+      <div class="panel detail-body" id="dvc"></div>
+    </section>
   </div>
 </main>
-<div id="dvp" style="display:none">
-  <div style="max-width:1300px;margin:1rem auto;padding:0 1rem">
-    <button class="dv-back" id="dvb">← Back to list</button>
-    <div class="dv-hd">
-      <div class="dv-id" id="dvi"></div>
-      <div class="dv-nm" id="dvt"></div>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div id="cite">
+      <h2>How to cite</h2>
+      <p class="cite-text">Garrett PT, Yates JR III. psimodpy: A Python library for the PSI-MOD protein modification
+        ontology. Zenodo. <a href="https://doi.org/10.5281/zenodo.22926360">doi:10.5281/zenodo.22926360</a></p>
+      <p>The ontology itself is maintained by HUPO-PSI: <a href="https://github.com/HUPO-PSI/psi-mod-CV">github.com/HUPO-PSI/psi-mod-CV</a>.</p>
     </div>
-    <div class="dv-bd" id="dvc"></div>
+    <div>
+      <h2>Software</h2>
+      <p>Data exported with <a href="https://pypi.org/project/psimodpy/">psimodpy</a> when this page was deployed.</p>
+      <p>Related browsers: <a href="https://tacular-omics.github.io/unimodpy/">Unimod</a> ·
+        <a href="https://tacular-omics.github.io/uniprotptmpy/">UniProt PTM</a></p>
+      <p><a href="https://github.com/tacular-omics/psimodpy">psimodpy on GitHub</a> · MIT licence</p>
+    </div>
   </div>
-</div>
+</footer>
+
 <script>
 'use strict';
-const MASS_CFG={mono:'diff_mono',avg:'diff_avg',lib:'psimodpy',note:'The library skips obsolete terms by default; use the Active only filter to match it.',
-  hasId:id=>BY_ID.has(Number(id))};
+const PAGE_TITLE='PSI-MOD browser: psimodpy';
+const MASS_CFG={mono:'diff_mono',avg:'diff_avg',lib:'psimodpy',note:'The library skips obsolete terms by default; use the "Active terms only" status filter to match it.',
+  hasId:id=>BY_ID.has(Number(id)),example:{mdelta:'79.966331',mtol:'0.01',munit:'da',mtype:'mono'}};
 let ALL=[],filtered=[],sortCol='id',sortDir=1,page=0,perPage=50;
 const BY_ID=new Map(),CHILDREN=new Map();
-const SRC={natural:'tg0',artifact:'tgr',artifactual:'tgr',hypothetical:'to0',none:'tgr'};
+const NONE='<span class="none">–</span>';
 function fmtId(id){return'MOD:'+String(id).padStart(5,'0');}
+function entryKey(e){return String(e.id);}
 function fmtOrigin(o){
-  if(!o)return'<span style="color:#d1d5db">—</span>';
-  if(typeof o==='string')return`<span class="tag tb0">${x(o)}</span>`;
-  if(o.type==='crosslink')return`<span class="tag tp0">XL:${o.sites.join('–')}</span>`;
+  if(!o)return NONE;
+  if(typeof o==='string')return`<span class="tag">${x(o)}</span>`;
+  if(o.type==='crosslink')return`<span class="tag" title="crosslink">crosslink ${x(o.sites.join('–'))}</span>`;
   return x(String(o));
 }
+function originText(o){if(!o)return'';if(typeof o==='string')return o;return'crosslink '+o.sites.join('-');}
 function termLink(id){
   const ent=BY_ID.get(id);
-  const idStr=fmtId(id);
-  const nm=ent?ent.name:'';
-  return`<a class="tag tb0 term-link" href="?id=${id}" data-term-id="${id}">`
-    +`<span class="tid">${idStr}</span>`
-    +(nm?`<span class="tnm">${x(nm)}</span>`:'')
-    +`</a>`;
+  return`<li><a href="?id=${id}" data-term-id="${id}"><span class="tid">${fmtId(id)}</span>${ent?x(ent.name):''}</a></li>`;
 }
 async function init(){
   const r=await fetch('data.json');
+  if(!r.ok)throw new Error(`data.json: HTTP ${r.status}`);
   ALL=await r.json();
   BY_ID.clear();CHILDREN.clear();
   for(const e of ALL)BY_ID.set(e.id,e);
@@ -201,7 +611,6 @@ async function init(){
     }
   }
   for(const arr of CHILDREN.values())arr.sort((a,b)=>a-b);
-  document.getElementById('ec').textContent=ALL.length+' entries';
   const origs=new Set,srcs=new Set;
   for(const e of ALL){
     if(e.origin!==null){
@@ -216,9 +625,8 @@ async function init(){
   update();
   const qid=new URLSearchParams(location.search).get('id');
   if(qid){const e=BY_ID.get(Number(qid));if(e)showDetail(e);}
+  ready(`Loaded ${ALL.length} PSI-MOD entries (${ALL.filter(e=>!e.is_obsolete).length} active, the rest obsolete).`);
 }
-function fill(id,vals){const s=document.getElementById(id);vals.forEach(v=>{const o=document.createElement('option');o.value=o.textContent=v;s.appendChild(o);});}
-function update(){page=0;applyFilters();applySort();render();massSync();}
 function applyFilters(){
   massPrep();
   const q=document.getElementById('q').value.trim().toLowerCase();
@@ -242,116 +650,151 @@ function applyFilters(){
     return true;
   });
 }
+function sortValue(e,col){return e[col];}
+const NUM_COLS=new Set(['diff_mono']);
+function statusTags(e){
+  const t=[];
+  if(e.in_slim_subset)t.push('<span class="tag">slim</span>');
+  if(e.is_obsolete)t.push('<span class="tag warn">obsolete</span>');
+  return t.join('')||NONE;
+}
+function rowHtml(e){
+  return`<td class="ic"><a href="${x(massUrl(entryKey(e)))}">${fmtId(e.id)}</a></td>
+<td class="nc">${x(e.name)}</td>
+<td>${fmtOrigin(e.origin)}</td>
+<td class="num">${e.diff_mono!=null?e.diff_mono.toFixed(6):NONE}</td>
+${massCell(e)}
+<td class="fc">${e.proforma_formula?x(e.proforma_formula):NONE}</td>
+<td>${e.source?`<span class="tag">${x(e.source)}</span>`:NONE}</td>
+<td><div class="tags">${statusTags(e)}</div></td>`;
+}
+const CSV_COLS=[['ID',e=>fmtId(e.id)],['Name',e=>e.name],['Origin',e=>originText(e.origin)],
+  ['Delta mass mono (Da)',e=>e.diff_mono],['Delta mass avg (Da)',e=>e.diff_avg],['Delta formula',e=>e.proforma_formula],
+  ['Source',e=>e.source],['Slim',e=>e.in_slim_subset?'yes':''],['Obsolete',e=>e.is_obsolete?'yes':'']];
+function detailTitle(e){return[fmtId(e.id),e.name];}
+function detail(e){
+  const synRows=(e.synonyms||[]).map(s=>`<tr><td class="wrap">${x(s.value)}</td><td class="mono">${x(s.type)}</td></tr>`).join('');
+  const parentIds=e.is_a||[];
+  const childIds=CHILDREN.get(e.id)||[];
+  const list=ids=>ids.length?`<ul class="term-list">${ids.map(termLink).join('')}</ul>`:'<p class="none">None.</p>';
+  const rels=(e.relationships||[]).map(r=>`<li>${x(r.type)}: <a href="?id=${r.target_id}" data-term-id="${r.target_id}"><span class="tid">${fmtId(r.target_id)}</span>${x(BY_ID.get(r.target_id)?.name||'')}</a></li>`).join('');
+  const kv=[];
+  if(e.origin!=null)kv.push(['Origin',fmtOrigin(e.origin)]);
+  if(e.source)kv.push(['Source',x(e.source)]);
+  if(e.term_spec&&e.term_spec!=='none')kv.push(['Terminal specificity',x(e.term_spec)]);
+  if(e.proforma_formula)kv.push(['Δ formula (ProForma)',`<span class="mono">${x(e.proforma_formula)}</span>`]);
+  if(e.formal_charge!=null)kv.push(['Formal charge',`<span class="mono">${e.formal_charge>0?'+':''}${e.formal_charge}</span>`]);
+  kv.push(['Status',statusTags(e)]);
+  if(e.xref_remap!=null)kv.push(['Replaced by',`<a href="?id=${e.xref_remap}" data-term-id="${e.xref_remap}">${fmtId(e.xref_remap)}</a>`]);
+  if(e.xref_unimod)kv.push(['Unimod',x(e.xref_unimod)]);
+  if(e.xref_uniprot_ptm)kv.push(['UniProt PTM',x(e.xref_uniprot_ptm)]);
+  if(e.xref_gnome)kv.push(['GNOme',x(e.xref_gnome)]);
+  if(e.comment)kv.push(['Comment',x(e.comment)]);
+  const num=(v,d)=>v!=null?v.toFixed(d):'–';
+  return`<p>${x(e.definition||'No definition.')}</p>
+<dl class="stats">
+<div><dt>Δ mass, monoisotopic (Da)</dt><dd>${num(e.diff_mono,6)}</dd></div>
+<div><dt>Δ mass, average (Da)</dt><dd>${num(e.diff_avg,4)}</dd></div>
+<div><dt>Residue mass, monoisotopic (Da)</dt><dd>${num(e.mass_mono,6)}</dd></div>
+<div><dt>Residue mass, average (Da)</dt><dd>${num(e.mass_avg,4)}</dd></div>
+</dl>
+<dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+<div class="cols">
+<div><h3>Parent terms (${parentIds.length})</h3>${list(parentIds)}</div>
+<div><h3>Direct children (${childIds.length})</h3>${list(childIds)}</div>
+</div>
+${rels?`<div><h3>Relationships</h3><ul class="term-list">${rels}</ul></div>`:''}
+${synRows?`<div><h3>Synonyms (${e.synonyms.length})</h3><div class="table-wrap auto"><table class="data"><thead><tr><th>Synonym</th><th>Type</th></tr></thead><tbody>${synRows}</tbody></table></div></div>`:''}`;
+}
+function findEntry(qid){return BY_ID.get(Number(qid));}
+
+// ---- Browser shell: identical in psimodpy, unimodpy and uniprotptmpy; the functions above are per database. ----
+function $(id){return document.getElementById(id);}
+function x(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fill(id,vals){const s=$(id);vals.forEach(v=>{const o=document.createElement('option');o.value=o.textContent=v;s.appendChild(o);});}
+function ready(msg){$('controls').disabled=false;$('runtime').dataset.state='ready';$('ec').textContent=msg;}
+function update(){page=0;applyFilters();applySort();render();massSync();}
 function applySort(){
   if(sortCol==='_err'){filtered.sort(massCmp);return;}
+  const isNum=NUM_COLS.has(sortCol);
   filtered.sort((a,b)=>{
-    let av=a[sortCol],bv=b[sortCol];
-    if(av==null)av=sortCol==='diff_mono'?Infinity:'';
-    if(bv==null)bv=sortCol==='diff_mono'?Infinity:'';
-    return(typeof av==='number'?(av-bv):String(av).localeCompare(String(bv)))*sortDir;
+    let av=sortValue(a,sortCol),bv=sortValue(b,sortCol);
+    if(av==null)av=isNum?Infinity:'';
+    if(bv==null)bv=isNum?Infinity:'';
+    return(typeof av==='number'&&typeof bv==='number'?(av-bv):String(av).localeCompare(String(bv)))*sortDir;
   });
 }
 function getPage(){if(!perPage)return filtered;return filtered.slice(page*perPage,(page+1)*perPage);}
 function render(){
-  const tbody=document.getElementById('tbody');
+  const tbody=$('tbody');
   const rows=getPage();
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="8" class="nr">No entries match your search.</td></tr>';updateBar();return;}
+  if(!rows.length){
+    const cols=$('tbl').querySelectorAll('thead th').length;
+    tbody.innerHTML=`<tr><td colspan="${cols}" class="empty-row">No entries match. Clear the search text or the Δ mass, or widen the tolerance.</td></tr>`;
+    updateBar();return;
+  }
   tbody.innerHTML='';
   for(const e of rows){
     const tr=document.createElement('tr');tr.className='dr';
-    const statTags=[];
-    if(e.in_slim_subset)statTags.push('<span class="tag tg0">slim</span>');
-    if(e.is_obsolete)statTags.push('<span class="tag trd">obsolete</span>');
-    tr.innerHTML=`<td class="ic">${fmtId(e.id)}</td>
-<td class="nc">${x(e.name)}</td>
-<td>${fmtOrigin(e.origin)}</td>
-<td class="mc">${e.diff_mono!=null?e.diff_mono.toFixed(6):'<span style="color:#d1d5db">—</span>'}</td>
-${massCell(e)}
-<td class="fc">${e.proforma_formula?`<code>${x(e.proforma_formula)}</code>`:'<span style="color:#d1d5db">—</span>'}</td>
-<td>${e.source?`<span class="tag ${SRC[e.source]||'tgr'}">${x(e.source)}</span>`:'<span style="color:#d1d5db">—</span>'}</td>
-<td><div class="tags">${statTags.join('')||'<span style="color:#d1d5db">—</span>'}</div></td>`;
-    tr.addEventListener('click',()=>openDetail(e));
+    tr.innerHTML=rowHtml(e);
+    tr.addEventListener('click',ev=>{
+      if(ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.altKey)return;
+      ev.preventDefault();openDetail(e);
+    });
     tbody.appendChild(tr);
   }
   updateBar();
 }
 function openDetail(e){
-  history.pushState({id:e.id},'',massUrl(String(e.id)));
+  history.pushState({id:entryKey(e)},'',massUrl(entryKey(e)));
+  window.scrollTo(0,0);
   showDetail(e);
 }
 function showDetail(e){
-  document.getElementById('lvw').style.display='none';
-  document.getElementById('dvp').style.display='block';
-  document.getElementById('dvi').textContent=fmtId(e.id);
-  document.getElementById('dvt').textContent=e.name;
-  const dvc=document.getElementById('dvc');
+  $('lvw').hidden=true;$('dvp').hidden=false;
+  const[acc,name]=detailTitle(e);
+  $('dvi').textContent=acc;$('dvt').textContent=name;
+  const dvc=$('dvc');
   dvc.innerHTML=detail(e);
   dvc.querySelectorAll('a[data-term-id]').forEach(a=>{
     a.addEventListener('click',ev=>{
       if(ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.button===1)return;
-      ev.preventDefault();
-      const tid=Number(a.dataset.termId);
-      const ent=BY_ID.get(tid);
-      if(ent){window.scrollTo(0,0);openDetail(ent);}
+      const ent=findEntry(a.dataset.termId);
+      if(ent){ev.preventDefault();openDetail(ent);}
     });
   });
-  document.title=e.name+' — psimodpy';
+  document.title=name+' ('+acc+'): '+PAGE_TITLE;
+  $('dvb').focus({preventScroll:true});
 }
-function closeDetail(){
-  history.pushState(null,'',massUrl(null));
-  document.getElementById('dvp').style.display='none';
-  document.getElementById('lvw').style.display='';
-  document.title='PSI-MOD Browser — psimodpy';
-}
-function detail(e){
-  const synRows=(e.synonyms||[]).map(s=>`<tr><td>${x(s.value)}</td><td class="mono" style="color:#6b7280;font-size:.75rem">${x(s.type)}</td></tr>`).join('');
-  const parentIds=e.is_a||[];
-  const parents=parentIds.length?`<div class="term-list">${parentIds.map(termLink).join('')}</div>`:'—';
-  const childIds=CHILDREN.get(e.id)||[];
-  const children=childIds.length?`<div class="term-list">${childIds.map(termLink).join('')}</div>`:'—';
-  const rels=(e.relationships||[]).map(r=>`<div style="font-size:.82rem"><span style="color:#6b7280">${x(r.type)}</span> → <span class="mono">${fmtId(r.target_id)}</span></div>`).join('')||'—';
-  const xrefs=[];
-  if(e.xref_unimod)xrefs.push(`<div><span class="tag tb0">Unimod</span> ${x(e.xref_unimod)}</div>`);
-  if(e.xref_uniprot_ptm)xrefs.push(`<div><span class="tag tg0">UniProt PTM</span> ${x(e.xref_uniprot_ptm)}</div>`);
-  if(e.xref_gnome)xrefs.push(`<div><span class="tag tp0">GNOme</span> ${x(e.xref_gnome)}</div>`);
-  if(e.xref_remap!=null)xrefs.push(`<div><span class="tag trd">Remap</span> ${fmtId(e.xref_remap)}</div>`);
-  const statTags=[];
-  if(e.in_slim_subset)statTags.push('<span class="tag tg0">slim</span>');
-  if(e.is_obsolete)statTags.push('<span class="tag trd">obsolete</span>');
-  return `<div class="dg" style="grid-column:1/-1"><div class="dl">Definition</div><div class="dv">${x(e.definition||'—')}</div></div>
-<div class="dg">
-<div><div class="dl">Δ Monoisotopic</div><div class="dv mono">${e.diff_mono!=null?e.diff_mono.toFixed(6)+' Da':'—'}</div></div>
-<div><div class="dl">Δ Average</div><div class="dv mono">${e.diff_avg!=null?e.diff_avg.toFixed(4)+' Da':'—'}</div></div>
-<div><div class="dl">Monoisotopic Mass</div><div class="dv mono">${e.mass_mono!=null?e.mass_mono.toFixed(6)+' Da':'—'}</div></div>
-<div><div class="dl">Average Mass</div><div class="dv mono">${e.mass_avg!=null?e.mass_avg.toFixed(4)+' Da':'—'}</div></div>
-${e.proforma_formula?`<div><div class="dl">Δ Formula</div><div class="dv mono"><code>${x(e.proforma_formula)}</code></div></div>`:''}
-${e.origin!==null&&e.origin!==undefined?`<div><div class="dl">Origin</div><div class="dv">${fmtOrigin(e.origin)}</div></div>`:''}
-${e.source?`<div><div class="dl">Source</div><div class="dv"><span class="tag ${SRC[e.source]||'tgr'}">${x(e.source)}</span></div></div>`:''}
-${e.term_spec&&e.term_spec!=='none'?`<div><div class="dl">Term Specificity</div><div class="dv">${x(e.term_spec)}</div></div>`:''}
-${e.formal_charge!=null?`<div><div class="dl">Formal Charge</div><div class="dv mono">${e.formal_charge>0?'+':''}${e.formal_charge}</div></div>`:''}
-${statTags.length?`<div><div class="dl">Status</div><div class="dv" style="display:flex;gap:.2rem;flex-wrap:wrap">${statTags.join('')}</div></div>`:''}
-</div>
-${synRows?`<div style="margin-top:.75rem"><div class="dl">Synonyms (${e.synonyms.length})</div>
-<table class="st"><thead><tr><th>Synonym</th><th>Type</th></tr></thead><tbody>${synRows}</tbody></table></div>`:''}
-<div class="dg" style="margin-top:.75rem">
-<div><div class="dl">Parent Terms${parentIds.length?' ('+parentIds.length+')':''}</div><div class="dv" style="margin-top:.2rem">${parents}</div></div>
-<div><div class="dl">Direct Children${childIds.length?' ('+childIds.length+')':''}</div><div class="dv" style="margin-top:.2rem">${children}</div></div>
-${rels!=='—'?`<div><div class="dl">Relationships</div><div class="dv" style="margin-top:.2rem">${rels}</div></div>`:''}
-${xrefs.length?`<div><div class="dl">Cross-References</div><div class="dv" style="margin-top:.25rem;display:flex;flex-direction:column;gap:.2rem">${xrefs.join('')}</div></div>`:''}
-</div>`;
-}
+function showList(){$('dvp').hidden=true;$('lvw').hidden=false;document.title=PAGE_TITLE;}
+function closeDetail(){history.pushState(null,'',massUrl(null));showList();}
 function updateBar(){
   const t=filtered.length,tp=perPage?Math.ceil(t/perPage):1;
   const s=t?page*perPage+1:0,e2=perPage?Math.min((page+1)*perPage,t):t;
-  document.getElementById('rc').textContent=t===0?'No entries found':`Showing ${s}–${e2} of ${t} entries`;
-  document.getElementById('pi').textContent=perPage&&tp>1?`${page+1}/${tp}`:'';
-  document.getElementById('pv').disabled=page===0;
-  document.getElementById('nx').disabled=!perPage||page>=tp-1;
+  $('rc').textContent=t===0?'No entries found.':`Showing ${s}–${e2} of ${t} entries`;
+  $('pi').textContent=perPage&&tp>1?`${page+1} / ${tp}`:'';
+  $('pv').disabled=page===0;
+  $('nx').disabled=!perPage||page>=tp-1;
+  $('csv').disabled=t===0;
   document.querySelectorAll('th[data-col]').forEach(th=>{
-    const sp=th.querySelector('span');if(sp)sp.className=th.dataset.col===sortCol?(sortDir===1?'sa':'sd'):'si';
+    th.setAttribute('aria-sort',th.dataset.col===sortCol?(sortDir===1?'ascending':'descending'):'none');
   });
 }
-// ---- Mass search: identical in psimodpy, unimodpy and uniprotptmpy; only MASS_CFG (fields, hasId) differs. ----
+function csvCell(v){if(v==null)return'';const s=String(v);return/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function downloadCsv(){
+  const cols=CSV_COLS.slice();
+  if(MS.on)cols.splice(1,0,['Delta error ('+(MS.unit==='ppm'?'ppm':'Da')+')',e=>massErrText(e)]);
+  const lines=[cols.map(c=>csvCell(c[0])).join(',')];
+  for(const e of filtered)lines.push(cols.map(c=>csvCell(c[1](e))).join(','));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([lines.join('\n')+'\n'],{type:'text/csv'}));
+  a.download=MASS_CFG.lib+'-entries.csv';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+// ---- end browser shell ----
+
+// ---- Mass search: identical in psimodpy, unimodpy and uniprotptmpy; only MASS_CFG (fields, hasId, example) differs. ----
 // Same rule as the library's search_mass(): keep entries with |delta - mass| <= tol (+1e-9 relative
 // slack, edges inclusive), error = delta - mass, closest first, ties in mass then database order.
 const MS={on:false,delta:0,tolDa:0,unit:'da',prec:null,field:MASS_CFG.mono,err:new Map(),idx:new Map(),wasOn:false};
@@ -361,9 +804,9 @@ function massEl(id){return document.getElementById(id);}
 const MASS_NUM_RE=/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 function massNum(s){s=String(s??'').trim();if(s==='')return null;if(!MASS_NUM_RE.test(s))return NaN;const v=Number(s);return Number.isFinite(v)?v:NaN;}
 function massHelp(){
-  return`Mass search: enter a signed delta mass in Da (e.g. 42.0106 or -18.0106). `
-    +`Keeps entries whose ${MASS_CFG.mono} (Monoisotopic) or ${MASS_CFG.avg} (Average) is within the tolerance; `
-    +`both edges are inclusive, the same rule as ${MASS_CFG.lib}'s search_mass() (which uses the monoisotopic mass and Da). `
+  return`Delta-mass search: enter a signed mass shift in Da (e.g. 42.0106 or -18.0106). `
+    +`The page keeps entries whose monoisotopic (${MASS_CFG.mono}) or average (${MASS_CFG.avg}) delta mass is within the tolerance; `
+    +`both edges are inclusive, the same rule as ${MASS_CFG.lib}'s search_mass() (which uses the monoisotopic mass and Da only). `
     +`Entries with no mass are hidden while a mass is entered. Δ error = your mass − entry mass. `
     +`Da: an absolute window. ppm: a delta mass has no precursor of its own, so ppm is taken relative to the precursor `
     +`mass you enter (the modified peptide's neutral mass, Da): tolerance in Da = ppm × precursor ÷ 1,000,000, `
@@ -371,8 +814,8 @@ function massHelp(){
 }
 function massInit(){
   ALL.forEach((e,i)=>MS.idx.set(e,i));
-  if(!MASS_CFG.avg)massEl('mtype').style.display='none';
-  const h=massHelp();massEl('minfo').title=h;massEl('minfo').setAttribute('aria-label',h);massEl('mdelta').title=h;
+  if(!MASS_CFG.avg)massEl('mtype').closest('.field').hidden=true;
+  massEl('minfo').textContent=massHelp();
   massEl('munit').querySelector('option[value=ppm]').title='ppm of the precursor mass you enter';
   massFromUrl();
   let t;
@@ -383,6 +826,10 @@ function massInit(){
     update();
   });
   massEl('mtype').addEventListener('change',update);
+  massEl('mexample').addEventListener('click',()=>{
+    for(const[k,v]of Object.entries(MASS_CFG.example))massEl(k).value=v;
+    update();
+  });
 }
 function massPrep(){
   const d=massNum(massEl('mdelta').value),t=massNum(massEl('mtol').value),p=massNum(massEl('mprec').value);
@@ -398,12 +845,13 @@ function massPrep(){
     else if(unit==='ppm'&&MS.prec==null)msg='ppm needs a precursor mass (Da): enter it, or switch to Da.';
     else{MS.on=true;MS.delta=d;MS.tolDa=unit==='ppm'?t*MS.prec/1e6:t;}
   }
-  massEl('mdelta').classList.toggle('bad',Number.isNaN(d));
-  massEl('mtol').classList.toggle('bad',d!=null&&tolBad);
-  massEl('mprec').classList.toggle('bad',unit==='ppm'&&d!=null&&MS.prec==null);
+  const bad=(id,on)=>{if(on)massEl(id).setAttribute('aria-invalid','true');else massEl(id).removeAttribute('aria-invalid');};
+  bad('mdelta',Number.isNaN(d));
+  bad('mtol',d!=null&&tolBad);
+  bad('mprec',unit==='ppm'&&d!=null&&MS.prec==null);
   massEl('mmsg').textContent=msg;
   massEl('mprecw').style.display=unit==='ppm'?'':'none';
-  document.querySelector('.tw table').classList.toggle('nomass',!MS.on);
+  massEl('tbl').classList.toggle('nomass',!MS.on);
   massEl('merrh').textContent='Δ error ('+unit.replace('da','Da')+(MS.field===MASS_CFG.avg?', avg':'')+')';
   if(MS.on&&!MS.wasOn){sortCol='_err';sortDir=1;}
   if(!MS.on&&sortCol==='_err'){sortCol='id';sortDir=1;}
@@ -423,12 +871,13 @@ function massCmp(a,b){
   // Only the error flips with the sort direction; ties stay in mass, then database, order.
   return(Math.abs(MS.err.get(a))-Math.abs(MS.err.get(b)))*sortDir||a[MS.field]-b[MS.field]||MS.idx.get(a)-MS.idx.get(b);
 }
-function massCell(e){
+function massErrText(e){
   const err=MS.err.get(e);
-  if(err==null)return'<td class="mc ec"></td>';
+  if(err==null)return'';
   const v=MS.unit==='ppm'?(err/MS.prec*1e6).toFixed(2):err.toFixed(6);
-  return`<td class="mc ec">${err>0?'+':''}${v}</td>`;
+  return(err>0?'+':'')+v;
 }
+function massCell(e){return`<td class="num ec">${massErrText(e)}</td>`;}
 function massUrl(id){
   const u=new URLSearchParams();
   if(id===undefined){id=new URLSearchParams(location.search).get('id');if(id!=null&&!MASS_CFG.hasId(id))id=null;}
@@ -454,26 +903,31 @@ function massFromUrl(){
   return changed;
 }
 // ---- end mass search ----
-function x(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-document.getElementById('dvb').addEventListener('click',closeDetail);
+
+// ---- Wiring: identical in the three browsers. ----
+$('dvb').addEventListener('click',closeDetail);
 window.addEventListener('popstate',()=>{
   const qid=new URLSearchParams(location.search).get('id');
-  if(qid){const e=BY_ID.get(Number(qid));if(e){showDetail(e);return;}}
-  document.getElementById('dvp').style.display='none';
-  document.getElementById('lvw').style.display='';
-  document.title='PSI-MOD Browser — psimodpy';
+  if(qid){const e=findEntry(qid);if(e){showDetail(e);return;}}
+  showList();
   if(massFromUrl())update();
 });
 let dt;
-document.getElementById('q').addEventListener('input',()=>{clearTimeout(dt);dt=setTimeout(update,200);});
-['for','fsr','fob','fsl'].forEach(id=>document.getElementById(id).addEventListener('change',update));
-document.getElementById('pp').addEventListener('change',e=>{perPage=+e.target.value;page=0;render();});
-document.getElementById('pv').addEventListener('click',()=>{if(page>0){page--;render();}});
-document.getElementById('nx').addEventListener('click',()=>{if(perPage&&page<Math.ceil(filtered.length/perPage)-1){page++;render();}});
+$('q').addEventListener('input',()=>{clearTimeout(dt);dt=setTimeout(update,200);});
+document.querySelectorAll('#controls select:not(#munit):not(#mtype)').forEach(s=>s.addEventListener('change',update));
+$('pp').addEventListener('change',e=>{perPage=+e.target.value;page=0;render();});
+$('pv').addEventListener('click',()=>{if(page>0){page--;render();}});
+$('nx').addEventListener('click',()=>{if(perPage&&page<Math.ceil(filtered.length/perPage)-1){page++;render();}});
+$('csv').addEventListener('click',downloadCsv);
 document.querySelectorAll('th[data-col]').forEach(th=>{th.addEventListener('click',()=>{
   const c=th.dataset.col;sortDir=sortCol===c?-sortDir:1;sortCol=c;applySort();render();
 });});
-init().catch(e=>{document.getElementById('tbody').innerHTML=`<tr><td colspan="7" class="nr">Error loading data: ${x(e.message)}</td></tr>`;document.getElementById('rc').textContent='Error';});
+init().catch(e=>{
+  const rt=$('runtime');rt.dataset.state='error';rt.setAttribute('role','alert');
+  $('ec').textContent='Could not load the term data ('+e.message+'). Reload the page; if it persists, report it on GitHub.';
+  $('rc').textContent='No data.';
+});
+// ---- end wiring ----
 </script>
 </body>
 </html>
