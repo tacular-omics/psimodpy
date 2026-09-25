@@ -13,7 +13,7 @@ psimodpy. Contributors to the repository should read CLAUDE.md instead.
 - Upstream ontology: https://github.com/HUPO-PSI/psi-mod-CV
 - License: MIT (package). The ontology data is from HUPO-PSI.
 
-Version documented here: 1.0.0. Python >= 3.12.
+Version documented here: 1.1.0. Python >= 3.12.
 
 
 ## 1. Install
