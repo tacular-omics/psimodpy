@@ -686,7 +686,8 @@ function detail(e){
   if(e.formal_charge!=null)kv.push(['Formal charge',`<span class="mono">${e.formal_charge>0?'+':''}${e.formal_charge}</span>`]);
   kv.push(['Status',statusTags(e)]);
   if(e.xref_remap!=null)kv.push(['Replaced by',`<a href="?id=${e.xref_remap}" data-term-id="${e.xref_remap}">${fmtId(e.xref_remap)}</a>`]);
-  if(e.xref_unimod)kv.push(['Unimod',x(e.xref_unimod)]);
+  const unimod=(e.xrefs_unimod&&e.xrefs_unimod.length)?e.xrefs_unimod:(e.xref_unimod?[e.xref_unimod]:[]);
+  if(unimod.length)kv.push(['Unimod',unimod.map(x).join(', ')]);
   if(e.xref_uniprot_ptm)kv.push(['UniProt PTM',x(e.xref_uniprot_ptm)]);
   if(e.xref_gnome)kv.push(['GNOme',x(e.xref_gnome)]);
   if(e.comment)kv.push(['Comment',x(e.comment)]);

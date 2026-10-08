@@ -31,7 +31,8 @@ _FIXED_PREFIX: tuple[str, ...] = (
     "is_obsolete",
 )
 
-_FIXED_SUFFIX: tuple[str, ...] = ("is_a", "relationships")
+# xrefs_unimod was added after 1.1; it is last so earlier columns keep their positions.
+_FIXED_SUFFIX: tuple[str, ...] = ("is_a", "relationships", "xrefs_unimod")
 
 _SUB_DELIM = "; "
 
@@ -108,6 +109,7 @@ def to_row(entry: PsiModEntry, syn_types: list[str]) -> list[str]:
         *(syn_by_type.get(t, "") for t in syn_types),
         _SUB_DELIM.join(f"MOD:{pid:05d}" for pid in entry.is_a),
         _SUB_DELIM.join(f"{r.type}:MOD:{r.target_id:05d}" for r in entry.relationships),
+        _SUB_DELIM.join(entry.xrefs_unimod),
     ]
 
 

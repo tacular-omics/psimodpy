@@ -141,6 +141,7 @@ def _build_entry(block: list[tuple[int, str]], path: Path, issues: _Issues) -> P
     in_slim_subset: bool = False
     is_obsolete: bool = False
     xrefs: dict[str, tuple[str, int]] = {}
+    unimod_xrefs: list[str] = []
     xref_uniprot_ptm: str | None = None
 
     for lineno, line in block:
@@ -195,6 +196,10 @@ def _build_entry(block: list[tuple[int, str]], path: Path, issues: _Issues) -> P
             if m:
                 if m.group(2):
                     xrefs[m.group(1)] = (m.group(2), lineno)
+                    # Unimod is the one xref PSI-MOD repeats with different values (e.g. MOD:01506
+                    # lists Unimod:214 and Unimod:889); keep each one, not only the last.
+                    if m.group(1) == "Unimod" and m.group(2) not in unimod_xrefs:
+                        unimod_xrefs.append(m.group(2))
             else:
                 issues.line("xref:", lineno, line)
 
@@ -251,6 +256,7 @@ def _build_entry(block: list[tuple[int, str]], path: Path, issues: _Issues) -> P
         in_slim_subset=in_slim_subset,
         is_obsolete=is_obsolete,
         definition_ref=definition_ref,
+        xrefs_unimod=tuple(unimod_xrefs),
     )
 
 
