@@ -9,8 +9,9 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from psimodpy import PsiModDatabase, PsimodError
-from psimodpy._mass import POSITIONS, parse_position, parse_site, slot_matches
+from psimodpy._mass import POSITIONS, RESIDUES, parse_position, parse_site, slot_matches
 from psimodpy.database import _slots
+from psimodpy.models import AminoAcid, Crosslink, TermSpec
 
 
 def _mass(entry) -> float | None:
@@ -190,20 +191,45 @@ def test_matches_brute_force_da(db: PsiModDatabase, delta, tolerance, site, posi
     )
 
 
-@given(
-    entry_index=st.integers(min_value=0, max_value=10_000),
-    offset=st.floats(min_value=-0.05, max_value=0.05, allow_nan=False),
-    tolerance=st.floats(min_value=0, max_value=0.05, allow_nan=False),
-    site=_sites,
-    position=_positions,
-)
-def test_matches_brute_force_near_real_masses(
-    db: PsiModDatabase, entry_index, offset, tolerance, site, position
-) -> None:
-    masses = [_mass(e) for e in db if _mass(e) is not None]
-    delta = masses[entry_index % len(masses)] + offset
-    got = db.search_mass(delta, tolerance=tolerance, site=site, position=position)
-    assert got == _brute(db, delta, tolerance, "da", site, position)
+_POSITIONS_FOR_TERM = {
+    TermSpec.N_TERM: ("peptide n-term", "protein n-term"),
+    TermSpec.C_TERM: ("peptide c-term", "protein c-term"),
+}
+
+
+def test_every_entry_found_at_its_own_mass(db: PsiModDatabase) -> None:
+    """Every entry with a mass, not a sample, is found at its own mass, site and position.
+
+    Catches: an entry left out of the mass index or sorted out of place (bisect then misses
+    it), an exact-edge float miss at tolerance ~0, and a wrong slot from origin/term_spec that
+    makes an entry unreachable when searched at its own residue (each crosslink residue) or
+    at the terminus its TermSpec allows. Obsolete entries are found only with include_obsolete.
+    """
+    failures = []
+    for entry in db:
+        mass = _mass(entry)
+        if mass is None:
+            continue
+        if isinstance(entry.origin, AminoAcid):
+            sites: tuple[str | None, ...] = (str(entry.origin),)
+        elif isinstance(entry.origin, Crosslink):
+            sites = tuple(s for s in entry.origin.sites if s in RESIDUES) or (None,)  # B and MOD:... are not sites
+        else:
+            sites = (None,)
+        for position in (None, *_POSITIONS_FOR_TERM.get(entry.term_spec, ("anywhere",))):
+            for site in sites:
+                found = [
+                    e
+                    for e, _ in db.search_mass(
+                        mass, tolerance=1e-9, site=site, position=position, include_obsolete=True
+                    )
+                ]
+                if entry not in found:
+                    failures.append(f"{entry.accession} mass={mass} site={site} position={position}")
+        in_default = entry in [e for e, _ in db.search_mass(mass, tolerance=1e-9)]
+        if in_default is entry.is_obsolete:
+            failures.append(f"{entry.accession}: obsolete={entry.is_obsolete} but in default search={in_default}")
+    assert not failures, f"{len(failures)} entries not found at their own mass:\n" + "\n".join(failures[:50])
 
 
 # ---------------------------------------------------------------- get_by_site
