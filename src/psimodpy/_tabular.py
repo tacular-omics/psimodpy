@@ -24,7 +24,6 @@ _FIXED_PREFIX: tuple[str, ...] = (
     "source",
     "formal_charge",
     "xref_unimod",
-    "xrefs_unimod",
     "xref_uniprot_ptm",
     "xref_gnome",
     "xref_remap",
@@ -32,7 +31,8 @@ _FIXED_PREFIX: tuple[str, ...] = (
     "is_obsolete",
 )
 
-_FIXED_SUFFIX: tuple[str, ...] = ("is_a", "relationships")
+# xrefs_unimod was added after 1.1; it is last so earlier columns keep their positions.
+_FIXED_SUFFIX: tuple[str, ...] = ("is_a", "relationships", "xrefs_unimod")
 
 _SUB_DELIM = "; "
 
@@ -101,7 +101,6 @@ def to_row(entry: PsiModEntry, syn_types: list[str]) -> list[str]:
         _cell(entry.source),
         _fmt_formal_charge(entry.formal_charge),
         _cell(entry.xref_unimod),
-        _SUB_DELIM.join(entry.xrefs_unimod),
         _cell(entry.xref_uniprot_ptm),
         _cell(entry.xref_gnome),
         f"MOD:{entry.xref_remap:05d}" if entry.xref_remap is not None else "",
@@ -110,6 +109,7 @@ def to_row(entry: PsiModEntry, syn_types: list[str]) -> list[str]:
         *(syn_by_type.get(t, "") for t in syn_types),
         _SUB_DELIM.join(f"MOD:{pid:05d}" for pid in entry.is_a),
         _SUB_DELIM.join(f"{r.type}:MOD:{r.target_id:05d}" for r in entry.relationships),
+        _SUB_DELIM.join(entry.xrefs_unimod),
     ]
 
 

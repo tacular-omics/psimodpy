@@ -128,6 +128,8 @@ def test_xrefs_unimod_column(db: PsiModDatabase, tmp_path) -> None:
     rows = _read_dict(out)
     row = next(r for r in rows if r["id"] == "MOD:01506")
     assert row["xrefs_unimod"] == "Unimod:214; Unimod:889"
+    header = out.read_text().splitlines()[0].split("\t")
+    assert header[-1] == "xrefs_unimod"  # appended last so older columns keep their positions
 
 
 def test_optional_fields_empty_not_none(db: PsiModDatabase, tmp_path) -> None:

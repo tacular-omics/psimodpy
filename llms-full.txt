@@ -241,10 +241,10 @@ are created. Columns, in order:
 
 ```
 id name definition comment diff_mono diff_avg diff_formula mass_mono mass_avg
-formula origin term_spec source formal_charge xref_unimod xrefs_unimod
-xref_uniprot_ptm xref_gnome xref_remap in_slim_subset is_obsolete
+formula origin term_spec source formal_charge xref_unimod xref_uniprot_ptm
+xref_gnome xref_remap in_slim_subset is_obsolete
 synonym_<type> ...   (one per SynonymType present, sorted, e.g. synonym_psi_mod_label)
-is_a relationships
+is_a relationships xrefs_unimod
 ```
 
 - `id`, `xref_remap`, `is_a` are written as `MOD:NNNNN`; `is_a` and
