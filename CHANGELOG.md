@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Entries that list more than one Unimod xref kept only the last one (MOD:01506, MOD:01507 and MOD:01509 list both `Unimod:214` and `Unimod:889`). New `PsiModEntry.xrefs_unimod` holds every Unimod xref in file order (`()` when none); `xref_unimod` is unchanged. The TSV/CSV export gains an `xrefs_unimod` column (`; `-separated), the REST/MCP entry model and the dashboard data gain `xrefs_unimod`, the browser site shows every Unimod xref, and `write_obo` writes them all. No other xref kind is repeated with different values in PSI-MOD.
+
 ## [1.1.1] (2026-09-25)
 
 ### Added

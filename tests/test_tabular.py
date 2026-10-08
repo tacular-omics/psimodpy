@@ -122,6 +122,14 @@ def test_xref_uniprot_ptm(db: PsiModDatabase, tmp_path) -> None:
     assert row["xref_uniprot_ptm"] == "PTM-0369"
 
 
+def test_xrefs_unimod_column(db: PsiModDatabase, tmp_path) -> None:
+    out = tmp_path / "out.tsv"
+    write_tsv(db, out)
+    rows = _read_dict(out)
+    row = next(r for r in rows if r["id"] == "MOD:01506")
+    assert row["xrefs_unimod"] == "Unimod:214; Unimod:889"
+
+
 def test_optional_fields_empty_not_none(db: PsiModDatabase, tmp_path) -> None:
     out = tmp_path / "out.tsv"
     write_tsv(db, out)

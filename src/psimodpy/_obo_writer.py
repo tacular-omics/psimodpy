@@ -84,8 +84,12 @@ def _write_entry(fh, entry: PsiModEntry, names: dict[int, str]) -> None:
         fh.write(_xref("Source", str(entry.source)))
     if entry.formal_charge is not None:
         fh.write(_xref("FormalCharge", _fmt_formal_charge(entry.formal_charge)))
+    # Keep xref_unimod last so re-parsing gives the same xref_unimod.
+    unimod = [u for u in entry.xrefs_unimod if u != entry.xref_unimod]
     if entry.xref_unimod is not None:
-        fh.write(_xref("Unimod", entry.xref_unimod))
+        unimod.append(entry.xref_unimod)
+    for value in unimod:
+        fh.write(_xref("Unimod", value))
     if entry.xref_uniprot_ptm is not None:
         fh.write(_xref("uniprot.ptm", entry.xref_uniprot_ptm))
     if entry.xref_gnome is not None:

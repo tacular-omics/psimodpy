@@ -82,6 +82,11 @@ def test_round_trip_uniprot_ptm_xref(db: PsiModDatabase, db2: PsiModDatabase) ->
     assert db2[35].xref_uniprot_ptm == db[35].xref_uniprot_ptm
 
 
+def test_round_trip_multiple_unimod_xrefs(db: PsiModDatabase, db2: PsiModDatabase) -> None:
+    assert db2[1506].xrefs_unimod == db[1506].xrefs_unimod == ("Unimod:214", "Unimod:889")
+    assert db2[1506].xref_unimod == db[1506].xref_unimod
+
+
 def test_round_trip_formal_charge(db: PsiModDatabase, db2: PsiModDatabase) -> None:
     assert db2[49].formal_charge == db[49].formal_charge
 

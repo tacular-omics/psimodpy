@@ -181,7 +181,8 @@ their fields are) or `StrEnum`s (compare equal to their string value).
 | `term_spec` | `TermSpec \| str \| None` | positional specificity (raw string if unknown) |
 | `source` | `Source \| str \| None` | natural / artifact / hypothetical (raw string if unknown) |
 | `formal_charge` | `int \| None` | signed net charge (`"1+"` -> `1`, `"2-"` -> `-2`) |
-| `xref_unimod` | `str \| None` | e.g. `"Unimod:21"` |
+| `xref_unimod` | `str \| None` | e.g. `"Unimod:21"`; the last one listed when there are several |
+| `xrefs_unimod` | `tuple[str, ...]` | every Unimod xref in file order, e.g. `("Unimod:214", "Unimod:889")` for MOD:01506; `()` if none |
 | `xref_uniprot_ptm` | `str \| None` | e.g. `"PTM-0253"` |
 | `xref_gnome` | `str \| None` | e.g. `"GNO:G29068FM"` |
 | `xref_remap` | `int \| None` | replacement id for an obsolete term |
@@ -240,8 +241,8 @@ are created. Columns, in order:
 
 ```
 id name definition comment diff_mono diff_avg diff_formula mass_mono mass_avg
-formula origin term_spec source formal_charge xref_unimod xref_uniprot_ptm
-xref_gnome xref_remap in_slim_subset is_obsolete
+formula origin term_spec source formal_charge xref_unimod xrefs_unimod
+xref_uniprot_ptm xref_gnome xref_remap in_slim_subset is_obsolete
 synonym_<type> ...   (one per SynonymType present, sorted, e.g. synonym_psi_mod_label)
 is_a relationships
 ```

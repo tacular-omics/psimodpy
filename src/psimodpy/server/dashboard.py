@@ -42,6 +42,7 @@ class DashboardEntry(TypedDict):
     source: str | None
     formal_charge: int | None
     xref_unimod: str | None
+    xrefs_unimod: list[str]
     xref_uniprot_ptm: str | None
     xref_gnome: str | None
     xref_remap: int | None
@@ -80,6 +81,7 @@ def dashboard_entries(db: PsiModDatabase | None = None) -> list[DashboardEntry]:
                 "source": str(entry.source) if entry.source is not None else None,
                 "formal_charge": entry.formal_charge,
                 "xref_unimod": entry.xref_unimod,
+                "xrefs_unimod": list(entry.xrefs_unimod),
                 "xref_uniprot_ptm": entry.xref_uniprot_ptm,
                 "xref_gnome": entry.xref_gnome,
                 "xref_remap": entry.xref_remap,

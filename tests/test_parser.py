@@ -278,6 +278,22 @@ def test_xref_unimod_count(db):
     assert len(unimod_refs) > 100
 
 
+def test_xrefs_unimod_keeps_every_value(db):
+    """MOD:01506 lists two Unimod xrefs (iTRAQ4plex Unimod:214, mTRAQ heavy Unimod:889); both are kept."""
+    for mod_id in (1506, 1507, 1509):
+        entry = db.get_by_id(mod_id)
+        assert entry is not None
+        assert entry.xrefs_unimod == ("Unimod:214", "Unimod:889")
+        assert entry.xref_unimod == "Unimod:889"  # unchanged single-value attribute
+
+
+def test_xrefs_unimod_single_and_none(db):
+    """An entry with one Unimod xref has a one-item tuple; one without has an empty tuple."""
+    assert db.get_by_id(46).xrefs_unimod == ("Unimod:21",)
+    assert all(e.xrefs_unimod == () for e in db if e.xref_unimod is None)
+    assert all(e.xref_unimod in e.xrefs_unimod for e in db if e.xref_unimod is not None)
+
+
 # --- parse_obo accepts both str and Path ---
 
 

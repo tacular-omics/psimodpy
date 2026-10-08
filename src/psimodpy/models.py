@@ -167,7 +167,8 @@ class PsiModEntry:
 
     # External cross-references
     xref_unimod: str | None
-    """Unimod cross-reference, e.g. 'Unimod:21#S' (xref: Unimod)."""
+    """Unimod cross-reference, e.g. 'Unimod:21#S' (xref: Unimod). When the entry lists
+    several, this is the last one listed; :attr:`xrefs_unimod` has all of them."""
 
     xref_uniprot_ptm: str | None
     """UniProt PTM cross-reference, e.g. 'PTM-0369' (xref: uniprot.ptm)."""
@@ -186,6 +187,15 @@ class PsiModEntry:
 
     definition_ref: str = ""
     """Citation list from the def: line without brackets, e.g. 'PubMed:18688235, RESID:AA0037'."""
+
+    xrefs_unimod: tuple[str, ...] = ()
+    """Every Unimod cross-reference of the entry, in file order, e.g. ``('Unimod:214', 'Unimod:889')``
+    for MOD:01506. Empty when there is none. Left empty on construction, it is filled from
+    :attr:`xref_unimod`."""
+
+    def __post_init__(self) -> None:
+        if not self.xrefs_unimod and self.xref_unimod is not None:
+            object.__setattr__(self, "xrefs_unimod", (self.xref_unimod,))
 
     @property
     def accession(self) -> str:
