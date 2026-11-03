@@ -7,7 +7,8 @@
 - `server` extra: `uvicorn>=0.30` could never be installed. mcp requires
   `uvicorn>=0.31.1`, so no resolution of the extra contained a 0.30.x, and
   `--resolution lowest-direct` silently stepped over the declared floor - the floor was
-  unreachable rather than merely untested. Now `uvicorn>=0.31.1`.
+  unreachable rather than merely untested. Now `uvicorn>=0.31.1`. On emscripten, where mcp
+  does not require uvicorn, this does raise the floor.
 
 ### Changed
 
