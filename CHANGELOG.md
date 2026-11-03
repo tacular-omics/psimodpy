@@ -40,7 +40,7 @@
 
 ### Changed
 
-- Browser site restyled to the shared tacular-omics style (plain academic layout, labelled units, light and dark themes); the footer shows the package version the data came from.
+- Browser site restyled to the shared tacular-omics style (plain academic layout, labelled units, light and dark themes). The footer shows the package version the data came from.
 - The source distribution now contains only the source, tests and the README, changelog, citation and license files: no paper, docs, lockfile or repository tooling.
 
 ## [1.1.0] (2026-09-24)
@@ -119,13 +119,13 @@ Shared 1.0 API with unimodpy and uniprotptmpy. Deprecated names still work and e
 
 ### Added
 
-- Releases are archived on Zenodo (`.zenodo.json`); no code changes.
+- Releases are archived on Zenodo (`.zenodo.json`). No code changes.
 
 ## [0.2.0] (2026-09-23)
 
 ### Added
 
-- `write_tsv` and `write_obo` writers; the OBO header round-trips, and entries keep `scope`, `definition_ref` and `header_lines`.
+- `write_tsv` and `write_obo` writers. The OBO header round-trips, and entries keep `scope`, `definition_ref` and `header_lines`.
 - Online PSI-MOD browser (GitHub Pages) with search, sort, filter and a detail view with clickable parent and child terms.
 - FastAPI REST API and MCP server (`server` extra), deployable to Vercel, which also serves the browser dashboard at the root.
 
@@ -146,7 +146,7 @@ Shared 1.0 API with unimodpy and uniprotptmpy. Deprecated names still work and e
 
 ## [0.1.1] (2026-03-27)
 
-- Packaging fixes; development dependencies moved to dependency groups.
+- Packaging fixes. Development dependencies moved to dependency groups.
 
 ## [0.1.0] (2026-03-26)
 
