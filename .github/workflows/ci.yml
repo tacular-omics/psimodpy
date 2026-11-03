@@ -64,11 +64,11 @@ jobs:
       - run: uv sync --resolution lowest-direct --all-extras --all-groups
       # --no-sync is required: a plain `uv run` re-resolves to the default (highest)
       # versions and silently undoes the lowest-direct sync above.
+      # This job inherits RUN_SLOW and HYPOTHESIS_PROFILE from the workflow env above,
+      # and it has to: it is the only job that resolves the floors we publish, so a slow
+      # test skipped here would leave a floor unguarded. If that env is ever narrowed to
+      # specific jobs, this one must keep both.
       - run: uv run --no-sync pytest tests
-        # The slow tests run here because this is the only job that resolves the declared
-        # floors: a slow test skipped here leaves a floor unguarded.
-        env:
-          RUN_SLOW: "1"
 
   package:
     runs-on: ubuntu-latest
