@@ -11,8 +11,6 @@
   level and never declared it. It only arrived transitively through fastapi and mcp. The
   floor is the one mcp already requires, so nothing resolves differently: the import is
   declared instead of inherited.
-- Updated development and test dependencies, and the pinned GitHub Actions in CI. No
-  changes to the library.
 
 ### Fixed
 
