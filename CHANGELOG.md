@@ -2,11 +2,6 @@
 
 ## [Unreleased]
 
-### Added
-
-- `server` extra: `pydantic>=2.12,<3`. The server has always imported pydantic at module
-  level and never declared it. It only arrived transitively through fastapi and mcp.
-
 ### Fixed
 
 - `server` extra: `uvicorn>=0.30` could never be installed. mcp requires
@@ -19,6 +14,8 @@
 - `server` extra: corrected the remaining floors to the lowest versions that actually
   resolve together and pass the suite - `fastapi>=0.110.1` (was `>=0.115`) and
   `mcp>=2.0.0,<3` (was `>=2.1.1,<3`). No change to what the package does.
+- `server` extra: `pydantic>=2.12,<3`. The server has always imported pydantic at module
+  level and never declared it. It only arrived transitively through fastapi and mcp.
 
 ## [1.1.3] (2026-10-26)
 
