@@ -65,6 +65,10 @@ jobs:
       # --no-sync is required: a plain `uv run` re-resolves to the default (highest)
       # versions and silently undoes the lowest-direct sync above.
       - run: uv run --no-sync pytest tests
+        # The slow tests run here because this is the only job that resolves the declared
+        # floors: a slow test skipped here leaves a floor unguarded.
+        env:
+          RUN_SLOW: "1"
 
   package:
     runs-on: ubuntu-latest
