@@ -5,7 +5,7 @@
 ### Added
 
 - `server` extra: `pydantic>=2.12,<3`. The server has always imported pydantic at module
-  level and never declared it; it only arrived transitively through fastapi and mcp.
+  level and never declared it. It only arrived transitively through fastapi and mcp.
 
 ### Fixed
 
