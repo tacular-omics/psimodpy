@@ -27,8 +27,9 @@ classifiers = [
 keywords = ["proteomics", "PSI-MOD", "protein modification", "ontology", "bioinformatics", "mass spectrometry"]
 
 [project.optional-dependencies]
-# Floors are the lowest that resolve together and pass the suite; lowest fastapi that
-# resolves is 0.108.0 and lowest that imports is 0.100.0, neither covered by CI.
+# Floors reconciled across psimodpy, unimodpy and uniprotptmpy. fastapi: 0.108.0 is the lowest
+# in the contiguous resolving range and 0.100.0 is the lowest that imports (0.104-0.107 cannot
+# resolve: they pin anyio<4 against mcp's anyio>=4.9); neither is covered by CI.
 server = [
     "fastapi>=0.110.1",
     "uvicorn>=0.31.1",
