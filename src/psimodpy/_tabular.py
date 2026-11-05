@@ -36,6 +36,10 @@ _FIXED_SUFFIX: tuple[str, ...] = ("is_a", "relationships", "xrefs_unimod")
 
 _SUB_DELIM = "; "
 
+# Synonym values are free text and 35 of them contain "; ", so the synonym columns cannot use
+# _SUB_DELIM and stay splittable. No synonym value contains "|".
+_SYN_DELIM = " | "
+
 
 def _synonym_types(entries: Iterable[PsiModEntry]) -> list[str]:
     """Return sorted unique synonym types (SynonymType values or unknown raw strings) across entries."""
@@ -79,11 +83,14 @@ def build_columns(entries: Iterable[PsiModEntry]) -> tuple[str, ...]:
 
 
 def to_row(entry: PsiModEntry, syn_types: list[str]) -> list[str]:
-    """Flatten a PsiModEntry to a list of column values."""
-    syn_by_type: dict[str, str] = {}
+    """Flatten a PsiModEntry to a list of column values.
+
+    Every synonym is kept: an entry with several synonyms of one type gets them all in that
+    type's column, in file order, joined by ``_SYN_DELIM``.
+    """
+    syn_by_type: dict[str, list[str]] = {}
     for s in entry.synonyms:
-        if str(s.type) not in syn_by_type:
-            syn_by_type[str(s.type)] = s.value
+        syn_by_type.setdefault(str(s.type), []).append(s.value)
 
     return [
         f"MOD:{entry.id:05d}",
@@ -106,7 +113,7 @@ def to_row(entry: PsiModEntry, syn_types: list[str]) -> list[str]:
         f"MOD:{entry.xref_remap:05d}" if entry.xref_remap is not None else "",
         "1" if entry.in_slim_subset else "0",
         "1" if entry.is_obsolete else "0",
-        *(syn_by_type.get(t, "") for t in syn_types),
+        *(_SYN_DELIM.join(syn_by_type.get(t, ())) for t in syn_types),
         _SUB_DELIM.join(f"MOD:{pid:05d}" for pid in entry.is_a),
         _SUB_DELIM.join(f"{r.type}:MOD:{r.target_id:05d}" for r in entry.relationships),
         _SUB_DELIM.join(entry.xrefs_unimod),
@@ -121,7 +128,9 @@ def write_tsv(
 ) -> Path:
     """Write PSI-MOD entries to a tab-separated file.
 
-    Pass ``delimiter=","`` to emit CSV instead. Returns the resolved Path.
+    One ``synonym_<type>`` column per synonym type present, each holding every synonym of that
+    type for the entry, in file order, separated by ``" | "``. Pass ``delimiter=","`` to emit CSV
+    instead. Returns the resolved Path.
     """
     materialized = list(entries)
     syn_types = _synonym_types(materialized)

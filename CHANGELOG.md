@@ -14,6 +14,13 @@
 
 ### Fixed
 
+- The TSV/CSV export kept only the first synonym of each type for an entry and dropped the
+  rest: 1579 of the ontology's 7288 synonyms, across 590 entries. MOD:00014 alone has 12
+  `RESID-alternate` synonyms, of which 11 were lost. Each `synonym_<type>` column now holds
+  every synonym of that type, in file order, separated by `" | "`. That separator is not the
+  `"; "` the other multi-value columns use, because 35 synonym values contain `"; "`
+  themselves and such a column could not be split back. The columns and their order are
+  unchanged.
 - `server` extra: `uvicorn>=0.30` could not be installed. mcp requires `uvicorn>=0.31.1`
   on every platform but emscripten, so no resolution of the extra contained a 0.30.x, and
   `--resolution lowest-direct` silently stepped over the declared floor - the floor was

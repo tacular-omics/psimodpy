@@ -64,7 +64,8 @@ src/psimodpy/
   database.py        PsiModDatabase (indexes by id, lowercase name, origin, reverse is_a),
                      load(source=None, *, refresh, include_obsolete, cache); load_from deprecated
   _formula.py        parse_formula("C 0 H 1 O 3 P 1") -> dict; formula_to_hill(dict) -> "HO3P"
-  _tabular.py        write_tsv(): fixed columns + one synonym_<type> column per type seen
+  _tabular.py        write_tsv(): fixed columns + one synonym_<type> column per type seen,
+                     each holding every synonym of that type, " | "-separated
   _obo_writer.py     write_obo(): round-trips through parse_obo
   _download.py       download(): fetch latest OBO from HUPO-PSI GitHub to ~/.cache/psimodpy
                      (download_obo deprecated alias)
