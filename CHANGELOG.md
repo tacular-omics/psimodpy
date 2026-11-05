@@ -19,6 +19,15 @@
   `--resolution lowest-direct` silently stepped over the declared floor - the floor was
   unreachable rather than merely untested. Now `uvicorn>=0.31.1`. On emscripten, where mcp
   does not require uvicorn, this does raise the floor.
+- `search_mass`: adding `position` to a query could add hits instead of removing them. The
+  terminus-slot rule read `position=None` as "neither terminus is open", which made the
+  least-constrained query the narrowest one. Both termini are now open for `position=None`
+  and closed for `position="anywhere"`, so `position` only ever removes matches. For
+  PSI-MOD data this changes no result. A slot's sites come from `origin` residues only,
+  never from `N-term` or `C-term`, so the rule could not fire here - a sweep of 1140
+  result sets is identical before and after. `tests/test_position_narrows.py` is the guard
+  that keeps it that way, because the same mass-search module ships in unimodpy and
+  uniprotptmpy, where the rule does fire.
 
 ## [1.1.3] (2026-10-26)
 
