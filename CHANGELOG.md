@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] (2026-11-06)
+
 ### Changed
 
 - `server` extra: corrected the remaining floors to the lowest versions that actually
