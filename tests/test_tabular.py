@@ -3,7 +3,7 @@
 import csv
 
 from psimodpy import PsiModDatabase, write_tsv
-from psimodpy._tabular import _FIXED_PREFIX, _FIXED_SUFFIX, _SYN_DELIM
+from psimodpy._tabular import _FIXED_PREFIX, _FIXED_SUFFIX, _SYN_DELIM, _synonym_col
 
 
 def _read(path, delimiter="\t"):
@@ -64,18 +64,53 @@ def test_synonym_values_populated(db: PsiModDatabase, tmp_path) -> None:
     assert row["synonym_psi_mod_label"] == "Ala"
 
 
-def test_synonym_count_matches_ontology(db: PsiModDatabase, tmp_path) -> None:
-    """Every synonym in the database reaches the file. Counted, not sampled."""
+def test_every_entry_round_trips_its_synonyms(db: PsiModDatabase, tmp_path) -> None:
+    """Per entry and per type, the cell splits back to exactly the parsed values, in order.
+
+    Stronger than a total: a dropped, duplicated or reordered synonym fails by naming the
+    entry and the column, where a sum only says the arithmetic changed. The total is still
+    asserted below, recovered from the file rather than recomputed from the database, so
+    this subsumes the count test it replaced.
+
+    What it does not see is a value carrying a bare ``"|"``: that survives the ``" | "``
+    split whole and compares equal. ``test_synonym_values_never_contain_the_delimiter``
+    is the only guard for that case.
+    """
     out = tmp_path / "out.tsv"
     write_tsv(db, out)
-    rows = _read_dict(out)
-    syn_cols = [col for col in rows[0] if col.startswith("synonym_")]
-    exported = sum(len(row[col].split(_SYN_DELIM)) for row in rows for col in syn_cols if row[col])
-    assert exported == sum(len(entry.synonyms) for entry in db)
+    rows = {row["id"]: row for row in _read_dict(out)}
+    syn_cols = [col for col in next(iter(rows.values())) if col.startswith("synonym_")]
+
+    mismatches, recovered, multi_value_cells = [], 0, 0
+    for entry in db:
+        row = rows[f"MOD:{entry.id:05d}"]
+        expected: dict[str, list[str]] = {}
+        for syn in entry.synonyms:
+            expected.setdefault(_synonym_col(str(syn.type)), []).append(syn.value)
+        for col in expected:
+            if col not in syn_cols:
+                mismatches.append((entry.id, col, "no such column", expected[col]))
+        for col in syn_cols:
+            got = row[col].split(_SYN_DELIM) if row[col] else []
+            if got != expected.get(col, []):
+                mismatches.append((entry.id, col, got, expected.get(col, [])))
+            recovered += len(got)
+            multi_value_cells += len(got) > 1
+
+    assert not mismatches, f"{len(mismatches)} entry/column mismatches, first: {mismatches[:3]}"
+    assert recovered == sum(len(entry.synonyms) for entry in db)
+    # Not a vacuous comparison: the multi-synonym cell is the shape that used to lose values.
+    assert multi_value_cells > 500, f"only {multi_value_cells} cells held more than one synonym"
 
 
 def test_synonym_values_never_contain_the_delimiter(db: PsiModDatabase) -> None:
-    """The counting test above can only count what is splittable."""
+    """The only guard for a bare ``"|"`` in a value.
+
+    Neither the round-trip comparison above nor a total sees it: ``"A|B"`` joins and splits
+    back unchanged, so the recovered value compares equal and the count does not move. A
+    bare pipe is lossless for this writer and would still break any consumer that splits on
+    ``"|"``, so this test is deliberately stricter than the delimiter actually used.
+    """
     assert [s.value for entry in db for s in entry.synonyms if _SYN_DELIM.strip() in s.value] == []
 
 
