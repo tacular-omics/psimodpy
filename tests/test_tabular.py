@@ -3,7 +3,7 @@
 import csv
 
 from psimodpy import PsiModDatabase, write_tsv
-from psimodpy._tabular import _FIXED_PREFIX, _FIXED_SUFFIX
+from psimodpy._tabular import _FIXED_PREFIX, _FIXED_SUFFIX, _SYN_DELIM
 
 
 def _read(path, delimiter="\t"):
@@ -62,6 +62,33 @@ def test_synonym_values_populated(db: PsiModDatabase, tmp_path) -> None:
     rows = _read_dict(out)
     row = next(r for r in rows if r["id"] == "MOD:00010")
     assert row["synonym_psi_mod_label"] == "Ala"
+
+
+def test_synonym_count_matches_ontology(db: PsiModDatabase, tmp_path) -> None:
+    """Every synonym in the database reaches the file. Counted, not sampled."""
+    out = tmp_path / "out.tsv"
+    write_tsv(db, out)
+    rows = _read_dict(out)
+    syn_cols = [col for col in rows[0] if col.startswith("synonym_")]
+    exported = sum(len(row[col].split(_SYN_DELIM)) for row in rows for col in syn_cols if row[col])
+    assert exported == sum(len(entry.synonyms) for entry in db)
+
+
+def test_synonym_values_never_contain_the_delimiter(db: PsiModDatabase) -> None:
+    """The counting test above can only count what is splittable."""
+    assert [s.value for entry in db for s in entry.synonyms if _SYN_DELIM.strip() in s.value] == []
+
+
+def test_all_synonyms_of_one_type_are_kept(db: PsiModDatabase, tmp_path) -> None:
+    out = tmp_path / "out.tsv"
+    write_tsv(db, out)
+    rows = _read_dict(out)
+    # MOD:00014 carries 12 RESID-alternate synonyms; only the first used to be written.
+    entry = db[14]
+    expected = [s.value for s in entry.synonyms if str(s.type) == "RESID-alternate"]
+    row = next(r for r in rows if r["id"] == "MOD:00014")
+    assert row["synonym_resid_alternate"].split(_SYN_DELIM) == expected
+    assert len(expected) == 12
 
 
 def test_is_a_format(db: PsiModDatabase, tmp_path) -> None:
