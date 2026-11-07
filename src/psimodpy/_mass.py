@@ -36,11 +36,16 @@ _ALLOWED: dict[str, frozenset[str]] = {
     "protein c-term": frozenset({WHERE_ANYWHERE, WHERE_ANY_C, WHERE_PROTEIN_C}),
 }
 _POSITION_ALIASES = {"any n-term": "peptide n-term", "any c-term": "peptide c-term"}
-_TERMINUS_AT = {
-    "peptide n-term": N_TERM,
-    "protein n-term": N_TERM,
-    "peptide c-term": C_TERM,
-    "protein c-term": C_TERM,
+# ``position`` -> the termini a residue observed there can sit at. Empty for "anywhere":
+# a residue inside the sequence is at neither terminus. ``position=None`` constrains
+# nothing, so both termini are open (``_TERMINI``).
+_TERMINI = frozenset({N_TERM, C_TERM})
+_TERMINI_AT: dict[str, frozenset[str]] = {
+    "anywhere": frozenset(),
+    "peptide n-term": frozenset({N_TERM}),
+    "protein n-term": frozenset({N_TERM}),
+    "peptide c-term": frozenset({C_TERM}),
+    "protein c-term": frozenset({C_TERM}),
 }
 POSITIONS = tuple(_ALLOWED)
 """Values ``position`` accepts (case-insensitive; ``"Any N-term"``/``"Any C-term"`` also work)."""
@@ -76,20 +81,21 @@ def parse_position(position: object, error: type[Exception]) -> str:
 def slot_matches(slots: tuple[Slot, ...], site: SiteQuery | None, position: str | None) -> bool:
     """True if one slot allows the modification at ``site`` observed at ``position``.
 
-    A terminus slot (``"N-term"``) matches a residue query only when ``position`` puts
-    the residue at that terminus: any residue can be there.
+    A terminus slot (``"N-term"``) matches a residue query whenever ``position`` leaves
+    that terminus open, which includes ``position=None``: any residue can be there. Adding
+    ``position`` to a query therefore only ever removes matches.
     """
     if site is None and position is None:
         return True
     allowed = _ALLOWED[position] if position is not None else None
-    terminus = _TERMINUS_AT.get(position) if position is not None else None
+    termini = _TERMINI_AT[position] if position is not None else _TERMINI
     for sites, where in slots:
         if allowed is not None and where not in allowed:
             continue
         if site is None:
             return True
         is_terminus, wanted = site
-        if sites & wanted or (not is_terminus and terminus is not None and terminus in sites):
+        if sites & wanted or (not is_terminus and sites & termini):
             return True
     return False
 
