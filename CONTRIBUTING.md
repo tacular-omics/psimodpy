@@ -21,16 +21,22 @@ just install
 psimodpy has one optional extra, `server` (`fastapi`, `uvicorn`, `mcp`, `pydantic`), and it
 is not part of the dev group. `just install` runs `uv sync --all-extras`, so it installs the
 extra and you get the whole test suite from that one command. A plain `uv sync` does not, and
-nothing in a test run tells you which of the two you ran:
+no single number in a test run tells you which of the two you ran:
 
 `tests/test_server.py` and `tests/test_mcp_vocabulary.py` call `pytest.importorskip` at module
 scope, so without that extra their tests are not collected at all and the suite is still green.
-Two things to read rather than the summary line, if you need to know whether they ran:
+Three things to read rather than the summary line's individual numbers, if you need to know
+whether they ran:
 
 - `uv pip list | grep -iE 'fastapi|mcp'` shows what is installed, which is the environment
   itself rather than what `pyproject.toml` declares.
 - `uv run pytest tests -rs` prints the reason for every skip, naming the two modules as
   `could not import 'fastapi'` and `could not import 'mcp'`.
+- The summary line does answer it once you subtract. Add up every outcome pytest reports
+  (passed, failed, skipped, xfailed, xpassed, errors), leave out any subtest count, and
+  subtract the number of tests collected, or the `selected` count if you deselected
+  anything. The difference is the number of files skipped at collection, so it counts the
+  two modules above when the extra is missing and is zero once it is installed.
 
 Do not read the skip count as the signal. A module skipped at import counts once however many
 tests it contains, so installing the extras makes the skip count go **down** while the number
