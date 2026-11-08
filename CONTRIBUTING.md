@@ -18,6 +18,19 @@ just install
 
 `just --list` shows the other recipes.
 
+`just install` runs `uv sync`, which installs the core package and the dev group but not
+the optional `server` extra. The server and MCP tests guard on `pytest.importorskip` at
+module scope, so without that extra they are never collected: `uv run pytest tests`
+collects 362 tests rather than 402, and the 40 that are missing (25 in
+`tests/test_server.py`, 15 in `tests/test_mcp_vocabulary.py`) are reported as 2 skips
+rather than 40, one per module, and only if you pass `-rs`. A green summary therefore says
+nothing about the server. If your change touches anything under `src/psimodpy/server/`,
+install the extras as well:
+
+```bash
+uv sync --all-extras
+```
+
 Install the commit hooks once per clone with `uvx pre-commit install`. On every
 commit they run `ruff check`, `ruff format --check` and a few file checks
 (`uvx pre-commit run --all-files` runs them on everything). Type checks and
