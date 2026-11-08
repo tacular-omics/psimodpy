@@ -18,18 +18,26 @@ just install
 
 `just --list` shows the other recipes.
 
-`just install` runs `uv sync`, which installs the core package and the dev group but not
-the optional `server` extra. The server and MCP tests guard on `pytest.importorskip` at
-module scope, so without that extra they are never collected: `uv run pytest tests`
-collects 362 tests rather than 402, and the 40 that are missing (25 in
-`tests/test_server.py`, 15 in `tests/test_mcp_vocabulary.py`) are reported as 2 skips
-rather than 40, one per module, and only if you pass `-rs`. A green summary therefore says
-nothing about the server. If your change touches anything under `src/psimodpy/server/`,
-install the extras as well:
+psimodpy has one optional extra, `server` (`fastapi`, `uvicorn`, `mcp`, `pydantic`), and it
+is not part of the dev group. `just install` runs `uv sync`, which does not install it, so if
+your change touches anything under `src/psimodpy/server/` install the extras as well:
 
 ```bash
 uv sync --all-extras
 ```
+
+`tests/test_server.py` and `tests/test_mcp_vocabulary.py` call `pytest.importorskip` at module
+scope, so without that extra their tests are not collected at all and the suite is still green.
+Two things to read rather than the summary line, if you need to know whether they ran:
+
+- `uv pip list | grep -iE 'fastapi|mcp'` shows what is installed, which is the environment
+  itself rather than what `pyproject.toml` declares.
+- `uv run pytest tests -rs` prints the reason for every skip, naming the two modules as
+  `could not import 'fastapi'` and `could not import 'mcp'`.
+
+Do not read the skip count as the signal. A module skipped at import counts once however many
+tests it contains, so installing the extras makes the skip count go **down** while the number
+of tests that actually ran goes up.
 
 Install the commit hooks once per clone with `uvx pre-commit install`. On every
 commit they run `ruff check`, `ruff format --check` and a few file checks
