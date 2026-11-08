@@ -23,7 +23,7 @@ independent copy of PSI-MOD and does not import psimodpy.
 ## Commands
 
 ```bash
-just install          # uv sync
+just install          # uv sync --all-extras (the server extra too; the suite needs it)
 just test             # uv run pytest tests  (fast default run, slow tests skipped, 50 Hypothesis examples)
 just test-all         # RUN_SLOW=1 HYPOTHESIS_PROFILE=thorough: everything, as CI runs it
 just lint             # uv run ruff check src

@@ -19,12 +19,9 @@ just install
 `just --list` shows the other recipes.
 
 psimodpy has one optional extra, `server` (`fastapi`, `uvicorn`, `mcp`, `pydantic`), and it
-is not part of the dev group. `just install` runs `uv sync`, which does not install it, so if
-your change touches anything under `src/psimodpy/server/` install the extras as well:
-
-```bash
-uv sync --all-extras
-```
+is not part of the dev group. `just install` runs `uv sync --all-extras`, so it installs the
+extra and you get the whole test suite from that one command. A plain `uv sync` does not, and
+nothing in a test run tells you which of the two you ran:
 
 `tests/test_server.py` and `tests/test_mcp_vocabulary.py` call `pytest.importorskip` at module
 scope, so without that extra their tests are not collected at all and the suite is still green.
