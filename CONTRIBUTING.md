@@ -39,7 +39,7 @@ of tests that actually ran goes up.
 Install the commit hooks once per clone with `uvx pre-commit install`. On every
 commit they run `ruff check`, `ruff format --check` and a few file checks
 (`uvx pre-commit run --all-files` runs them on everything). Type checks and
-tests are not in the hooks; run `just check` for those.
+tests are not in the hooks. Run `just check` for those.
 
 ## Running checks
 
@@ -59,7 +59,7 @@ python scripts/release_version.py check
 - Branch from `main` and keep each pull request to one change.
 - Add tests for new behaviour and fixed bugs.
 - Add a line under `## [Unreleased]` in `CHANGELOG.md` for user-visible changes.
-- Do not change the version number; the maintainers set it when releasing.
+- Do not change the version number. The maintainers set it when releasing.
 - CI must pass: lint, type check, tests on Python 3.12 to 3.14, and the wheel build.
 
 ## CLAUDE.md and AI agents
@@ -67,5 +67,5 @@ python scripts/release_version.py check
 `CLAUDE.md` is the maintained developer guide: commands, architecture,
 conventions and known gotchas. `AGENTS.md` points other coding agents to it.
 Read it before a larger change, and update it in the same pull request when your
-change makes part of it wrong. AI-assisted contributions are welcome; you are
+change makes part of it wrong. AI-assisted contributions are welcome. You are
 responsible for reviewing and testing what you submit.
