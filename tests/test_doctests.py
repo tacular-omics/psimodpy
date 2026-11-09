@@ -112,20 +112,22 @@ def test_docstring_examples() -> None:
     assert attempted >= MIN_EXAMPLES, f"only {attempted} examples ran, expected at least {MIN_EXAMPLES}"
 
 
-def _first_missing_root() -> str | None:
-    """Import every name under ``psimodpy.server``; return the missing top-level root, or None.
+def _subtree_failures() -> dict[str, str]:
+    """Import every name under ``psimodpy.server``; return ``{dotted name: missing root}``.
 
-    The root rather than the dotted name, because that is what the gate keys on: an
-    ImportError from ``psimodpy.server.app`` names the dependency it could not find.
+    Every name is attempted, and the root rather than the dotted name, because that is what
+    the gate keys on: an ImportError out of ``psimodpy.server.app`` names the dependency it
+    could not find.
     """
+    failures: dict[str, str] = {}
     for name in _server_subtree():
         try:
             importlib.import_module(name)
         except ImportError as exc:
             # exc.name is None for a few ImportError shapes that are not
-            # ModuleNotFoundError; "" then fails the assertion below with the repr shown.
-            return (exc.name or "").partition(".")[0]
-    return None
+            # ModuleNotFoundError; "" then fails the first assertion with the module named.
+            failures[name] = (exc.name or "").partition(".")[0]
+    return failures
 
 
 def test_server_gate_matches_the_environment() -> None:
@@ -138,29 +140,35 @@ def test_server_gate_matches_the_environment() -> None:
     while the five server modules' examples quietly stop running. A count that a correct
     skip also produces cannot tell a correct verdict from a stuck one; only importing the
     subtree and comparing can.
+
+    The predicate is deliberately not "every gated module fails". A half-installed extra is
+    a supported environment -- `pip install fastapi pydantic` without `mcp` -- and the
+    modules in a gated subtree need not all fail on the same root, or at all. What must hold
+    is that every failure names a root the key lists, and that at least one failure exists.
     """
     verdict_present = all(_installed(dep) for dep in _SERVER_REQUIRES)
 
     try:
-        missing = _first_missing_root()
+        failures = _subtree_failures()
     except pytest.skip.Exception as exc:  # pragma: no cover - only a dead gate gets here
         # Caught by hand because an escaped Skipped is reported as a skip, not a failure, so
         # the test announcing the gate's death would read green.
         pytest.fail(f"importing the server subtree raised Skipped, which pytest would report as a skip: {exc!r}")
 
-    if verdict_present:
-        assert missing is None, (
-            f"the gate says the {_SERVER} extra is present, but importing the subtree failed on "
-            f"{missing!r}; with this verdict nothing is skipped, so the doctest walk fails too"
-        )
-        return
+    unnamed = {name: root for name, root in failures.items() if root not in _SERVER_REQUIRES}
+    assert not unnamed, (
+        f"these modules failed to import on a root _SERVER_REQUIRES does not name: {unnamed}. "
+        f"The key is {_SERVER_REQUIRES}. Whatever the verdict, it was reached without "
+        f"consulting the root that actually decides, so a right skip here is right by accident"
+    )
 
-    assert missing is not None, (
-        f"the gate says the {_SERVER} extra is absent, but the whole subtree imported; "
-        f"the five modules are being skipped in an environment that can run them"
-    )
-    assert missing in _SERVER_REQUIRES, (
-        f"the gate says the extra is absent and the import does fail, but on {missing!r}, "
-        f"which _SERVER_REQUIRES does not name: {_SERVER_REQUIRES}. The skip is right by "
-        f"accident, and a module failing on an unnamed root would be skipped in silence"
-    )
+    if verdict_present:
+        assert not failures, (
+            f"the gate says the {_SERVER} extra is present, but these modules failed: {failures}. "
+            f"With this verdict nothing is skipped, so the doctest walk fails too"
+        )
+    else:
+        assert failures, (
+            f"the gate says the {_SERVER} extra is absent, but every name under it imported: "
+            f"{_server_subtree()}. The modules are being skipped in an environment that can run them"
+        )
