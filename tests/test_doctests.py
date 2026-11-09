@@ -12,6 +12,8 @@ import importlib.util
 import pkgutil
 from types import ModuleType
 
+import pytest
+
 import psimodpy
 
 # Measured 2026-11-08 on this tree: 10 core modules, 5 under psimodpy.server, and 9
@@ -108,3 +110,65 @@ def test_docstring_examples() -> None:
     # extra. Split it by environment if an example is ever added under psimodpy.server.
     assert failed == 0, f"{failed} of {attempted} docstring examples failed"
     assert attempted >= MIN_EXAMPLES, f"only {attempted} examples ran, expected at least {MIN_EXAMPLES}"
+
+
+def _subtree_failures() -> dict[str, str]:
+    """Import every name under ``psimodpy.server``; return ``{dotted name: missing root}``.
+
+    Every name is attempted, and the root rather than the dotted name, because that is what
+    the gate keys on: an ImportError out of ``psimodpy.server.app`` names the dependency it
+    could not find.
+    """
+    failures: dict[str, str] = {}
+    for name in _server_subtree():
+        try:
+            importlib.import_module(name)
+        except ImportError as exc:
+            # exc.name is None for a few ImportError shapes that are not
+            # ModuleNotFoundError; "" then fails the first assertion with the module named.
+            failures[name] = (exc.name or "").partition(".")[0]
+    return failures
+
+
+def test_server_gate_matches_the_environment() -> None:
+    """Check the gate's verdict against the environment, which no floor above can do.
+
+    The floors cannot: with the verdict stuck at "absent" in an environment that does have
+    the extra, ``_collect`` skips, ``skipped`` receives all five names from
+    ``_server_subtree()`` either way, so the server floor is met by construction, and every
+    example lives in a core module so the example floor is met too. Both floors stay green
+    while the five server modules' examples quietly stop running. A count that a correct
+    skip also produces cannot tell a correct verdict from a stuck one; only importing the
+    subtree and comparing can.
+
+    The predicate is deliberately not "every gated module fails". A half-installed extra is
+    a supported environment -- `pip install fastapi pydantic` without `mcp` -- and the
+    modules in a gated subtree need not all fail on the same root, or at all. What must hold
+    is that every failure names a root the key lists, and that at least one failure exists.
+    """
+    verdict_present = all(_installed(dep) for dep in _SERVER_REQUIRES)
+
+    try:
+        failures = _subtree_failures()
+    except pytest.skip.Exception as exc:  # pragma: no cover - only a dead gate gets here
+        # Caught by hand because an escaped Skipped is reported as a skip, not a failure, so
+        # the test announcing the gate's death would read green.
+        pytest.fail(f"importing the server subtree raised Skipped, which pytest would report as a skip: {exc!r}")
+
+    unnamed = {name: root for name, root in failures.items() if root not in _SERVER_REQUIRES}
+    assert not unnamed, (
+        f"these modules failed to import on a root _SERVER_REQUIRES does not name: {unnamed}. "
+        f"The key is {_SERVER_REQUIRES}. Whatever the verdict, it was reached without "
+        f"consulting the root that actually decides, so a right skip here is right by accident"
+    )
+
+    if verdict_present:
+        assert not failures, (
+            f"the gate says the {_SERVER} extra is present, but these modules failed: {failures}. "
+            f"With this verdict nothing is skipped, so the doctest walk fails too"
+        )
+    else:
+        assert failures, (
+            f"the gate says the {_SERVER} extra is absent, but every name under it imported: "
+            f"{_server_subtree()}. The modules are being skipped in an environment that can run them"
+        )
