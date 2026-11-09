@@ -54,13 +54,34 @@ def _server_subtree() -> list[str]:
     return [_SERVER, *(child for child, _ispkg in _submodules(_SERVER, paths))]
 
 
+def _import(name: str, ispkg: bool) -> ModuleType:
+    """Import one module, re-raising an ImportError with the name the walk was entering.
+
+    A diagnosis guard, not a correctness one: the module floor below already catches the
+    drop, because it is asserted against the names the walk discovered. What this adds is
+    the dotted name of the module that broke and, for a package, the fact that nothing
+    under it was reached -- the bare ImportError names only the dependency that was
+    missing, so with a subpackage you would read "No module named 'fastapi'" and have to
+    infer the rest from the traceback.
+
+    It cannot see a module that ``psimodpy/__init__.py`` imports itself: that one fails
+    while this test module is being imported, before the walk starts. Both branches were
+    measured on 2026-11-08; see the commit message.
+    """
+    try:
+        return importlib.import_module(name)
+    except ImportError as exc:
+        reached = ", so none of its submodules were seen" if ispkg else ""
+        raise AssertionError(f"walking into {name} failed{reached}: {exc!r}") from exc
+
+
 def _collect(package: ModuleType, imported: list[ModuleType], skipped: list[str]) -> None:
     """Import every module under ``package``, depth first. An ImportError fails the test."""
     for name, ispkg in _submodules(package.__name__, list(package.__path__)):
         if name == _SERVER and not all(_installed(dep) for dep in _SERVER_REQUIRES):
             skipped.extend(_server_subtree())
             continue
-        module = importlib.import_module(name)
+        module = _import(name, ispkg)
         imported.append(module)
         if ispkg:
             _collect(module, imported, skipped)
