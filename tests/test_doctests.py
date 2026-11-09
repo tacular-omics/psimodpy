@@ -12,6 +12,8 @@ import importlib.util
 import pkgutil
 from types import ModuleType
 
+import pytest
+
 import psimodpy
 
 # Measured 2026-11-08 on this tree: 10 core modules, 5 under psimodpy.server, and 9
@@ -108,3 +110,57 @@ def test_docstring_examples() -> None:
     # extra. Split it by environment if an example is ever added under psimodpy.server.
     assert failed == 0, f"{failed} of {attempted} docstring examples failed"
     assert attempted >= MIN_EXAMPLES, f"only {attempted} examples ran, expected at least {MIN_EXAMPLES}"
+
+
+def _first_missing_root() -> str | None:
+    """Import every name under ``psimodpy.server``; return the missing top-level root, or None.
+
+    The root rather than the dotted name, because that is what the gate keys on: an
+    ImportError from ``psimodpy.server.app`` names the dependency it could not find.
+    """
+    for name in _server_subtree():
+        try:
+            importlib.import_module(name)
+        except ImportError as exc:
+            # exc.name is None for a few ImportError shapes that are not
+            # ModuleNotFoundError; "" then fails the assertion below with the repr shown.
+            return (exc.name or "").partition(".")[0]
+    return None
+
+
+def test_server_gate_matches_the_environment() -> None:
+    """Check the gate's verdict against the environment, which no floor above can do.
+
+    The floors cannot: with the verdict stuck at "absent" in an environment that does have
+    the extra, ``_collect`` skips, ``skipped`` receives all five names from
+    ``_server_subtree()`` either way, so the server floor is met by construction, and every
+    example lives in a core module so the example floor is met too. Both floors stay green
+    while the five server modules' examples quietly stop running. A count that a correct
+    skip also produces cannot tell a correct verdict from a stuck one; only importing the
+    subtree and comparing can.
+    """
+    verdict_present = all(_installed(dep) for dep in _SERVER_REQUIRES)
+
+    try:
+        missing = _first_missing_root()
+    except pytest.skip.Exception as exc:  # pragma: no cover - only a dead gate gets here
+        # Caught by hand because an escaped Skipped is reported as a skip, not a failure, so
+        # the test announcing the gate's death would read green.
+        pytest.fail(f"importing the server subtree raised Skipped, which pytest would report as a skip: {exc!r}")
+
+    if verdict_present:
+        assert missing is None, (
+            f"the gate says the {_SERVER} extra is present, but importing the subtree failed on "
+            f"{missing!r}; with this verdict nothing is skipped, so the doctest walk fails too"
+        )
+        return
+
+    assert missing is not None, (
+        f"the gate says the {_SERVER} extra is absent, but the whole subtree imported; "
+        f"the five modules are being skipped in an environment that can run them"
+    )
+    assert missing in _SERVER_REQUIRES, (
+        f"the gate says the extra is absent and the import does fail, but on {missing!r}, "
+        f"which _SERVER_REQUIRES does not name: {_SERVER_REQUIRES}. The skip is right by "
+        f"accident, and a module failing on an unnamed root would be skipped in silence"
+    )
