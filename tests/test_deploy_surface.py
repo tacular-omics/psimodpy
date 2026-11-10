@@ -453,6 +453,42 @@ def test_ci_runs_this_module_with_the_gate_set() -> None:
     )
 
 
+def conftest_import_roots() -> frozenset[str]:
+    """Every root package ``tests/conftest.py`` imports at module scope, filtered by nothing.
+
+    Split out of :func:`conftest_foreign_roots` so the walk itself can be asserted. Credit to
+    unimodpy, which found on 2026-11-10 that the job-environment test below is vacuous in a
+    second way: it skips when the reader finds no foreign root, so a reader that has stopped
+    reading and a conftest that imports nothing the deploy lacks are the same observation, and
+    that observation is a skip at exit 0. unimodpy skips today, because its conftest imports
+    pytest and its own package only. This package's does import hypothesis, so the test below
+    does not skip here - but nothing asserted that the reader still worked, which means this
+    module would have gone quiet in exactly the place it exists to speak.
+    """
+    conftest = ROOT / "tests" / "conftest.py"
+    assert conftest.is_file(), "tests/conftest.py does not exist, so this check cannot say what it needs"
+    return frozenset(dotted.split(".")[0] for dotted in module_scope_imports(conftest))
+
+
+def test_the_conftest_reader_sees_what_the_conftest_imports() -> None:
+    """Assert the reader reads, which the test below cannot do in the run where it skips.
+
+    The floor is ``pytest`` and the package itself rather than ``hypothesis``, deliberately: a
+    conftest that stopped importing hypothesis is a legitimate tree and must leave this test
+    green while the one below skips, whereas a conftest that imports neither pytest nor the
+    package it tests is not a tree this repo has. So this test moves on a broken reader and
+    stays still on a changed conftest, which is the split the skip could not express.
+    """
+    roots = conftest_import_roots()
+    expected = {"pytest", PACKAGE}
+    assert expected <= roots, (
+        f"the module-scope import walk reports {sorted(roots)} for tests/conftest.py, which is "
+        f"missing {sorted(expected - roots)}. Every conftest in this repo imports pytest and "
+        f"{PACKAGE} at module scope, so a walk that cannot see them is not reading the file, and "
+        f"the `{JOB}` job's --noconftest claim below would go unasserted as a skip at exit 0"
+    )
+
+
 def conftest_foreign_roots() -> tuple[str, ...]:
     """Third-party roots ``tests/conftest.py`` imports at module scope, beyond pytest itself.
 
@@ -461,10 +497,7 @@ def conftest_foreign_roots() -> tuple[str, ...]:
     package that the deploy does not have, so importing conftest would error at collection
     before a single assertion ran.
     """
-    conftest = ROOT / "tests" / "conftest.py"
-    assert conftest.is_file(), "tests/conftest.py does not exist, so this check cannot say what it needs"
-    roots = {dotted.split(".")[0] for dotted in module_scope_imports(conftest)}
-    return tuple(sorted(roots - sys.stdlib_module_names - {PACKAGE, "pytest", "__future__"}))
+    return tuple(sorted(conftest_import_roots() - sys.stdlib_module_names - {PACKAGE, "pytest", "__future__"}))
 
 
 def test_the_job_runs_without_what_the_deploy_does_not_install() -> None:
