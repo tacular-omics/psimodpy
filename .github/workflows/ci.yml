@@ -126,3 +126,35 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uvx pre-commit run --all-files --show-diff-on-failure
+
+  # Package-specific: the Vercel deploy surface (vercel.json, api/index.py), which nothing in
+  # src/ can reach and which only a Vercel build had ever exercised. The environment is built by
+  # vercel.json's own installCommand, with Vercel's no-installCommand default as the fallback, so
+  # a deleted installCommand fails here with the ModuleNotFoundError it would put in production
+  # rather than with a reading of the file. See tests/test_deploy_surface.py.
+  deploy-surface:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          # The requires-python floor, which is the interpreter Vercel's Python runtime picks
+          # (its build log: "Using Python 3.12 from pyproject.toml"). Compared against the
+          # pyproject by test_the_job_builds_on_the_python_vercel_picks, so a requires-python
+          # bump cannot leave this job behind in silence.
+          python-version: "3.12"
+      - name: Install the way vercel.json installs
+        run: |
+          uv venv
+          export VIRTUAL_ENV="$PWD/.venv"
+          command=$(python3 -c "import json;print(json.load(open('vercel.json')).get('installCommand') or 'uv pip install .')")
+          echo "installCommand: $command"
+          eval "$command"
+          uv pip install pytest
+      - name: Run the deploy-surface tests with the gate on
+        env:
+          PSIMODPY_REQUIRE_DEPLOY_SURFACE: "1"
+        # --noconftest because tests/conftest.py imports hypothesis, which the deploy does not
+        # install; installing it would take this job's environment away from the deploy's, which
+        # is the job's whole claim. Asserted by test_the_job_runs_without_what_the_deploy_does_not_install.
+        run: .venv/bin/python -m pytest -q --noconftest tests/test_deploy_surface.py
