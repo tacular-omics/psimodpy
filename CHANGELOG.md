@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- OBO parser and writer now decode and escape OBO 1.2 escape sequences (`\n`, `\W`, `\t`,
+  `\:`, `\,`, `\"`, `\\`, `\(`, `\)`, `\[`, `\]`, `\{`, `\}`) in quoted and
+  free-text fields, so names, definitions, synonyms, comments and xrefs containing quotes,
+  backslashes, brackets, newlines or tabs round-trip intact instead of corrupting or dropping
+  values.
+
 ## [1.2.0] (2026-11-06)
 
 ### Changed

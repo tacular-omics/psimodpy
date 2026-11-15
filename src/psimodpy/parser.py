@@ -26,12 +26,162 @@ if TYPE_CHECKING:
     from psimodpy.database import PsiModDatabase
 
 # Compiled regexes (module-level, compiled once)
-_DEF_RE = re.compile(r'^def:\s+"(.*?)"\s+\[([^\]]*)\]')
-_SYNONYM_RE = re.compile(r'^synonym:\s+"(.+?)"\s+(\w+)\s+(\S+)\s+\[\]')
+_OBO_TRAILING = r'(?:\s*\{(?:[^}"\\]|\\.|"(?:[^"\\]|\\.)*")*\})?(?:\s*!.*)?\s*$'
+_DEF_RE = re.compile(rf'^def:\s+"((?:[^"\\]|\\.)*)"\s+\[((?:[^\]"\\]|\\.|"(?:[^"\\]|\\.)*")*)\]{_OBO_TRAILING}')
+_SYNONYM_RE = re.compile(rf'^synonym:\s+"((?:[^"\\]|\\.)*)"\s+(\w+)\s+(\S+)\s+\[\]{_OBO_TRAILING}')
 _IS_A_RE = re.compile(r"^is_a:\s+MOD:(\d+)")
 _RELATIONSHIP_RE = re.compile(r"^relationship:\s+(\S+)\s+MOD:(\d+)")
-_XREF_RE = re.compile(r'^xref:\s+([^:]+):\s+"(.*?)"$')
-_XREF_UNIPROT_RE = re.compile(r"^xref:\s+(uniprot\.ptm):(\S+)$")
+_XREF_RE = re.compile(rf'^xref:\s+([^:]+):\s+"((?:[^"\\]|\\.)*)"{_OBO_TRAILING}')
+
+_OBO_UNESCAPE = {
+    "n": "\n",
+    "W": " ",
+    "t": "\t",
+    ":": ":",
+    ",": ",",
+    '"': '"',
+    "\\": "\\",
+    "(": "(",
+    ")": ")",
+    "[": "[",
+    "]": "]",
+    "{": "{",
+    "}": "}",
+}
+
+
+def _unescape_obo(text: str) -> str:
+    """Decode OBO 1.2 backslash escape sequences in a single pass."""
+    if "\\" not in text:
+        return text
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "\\" and i + 1 < n:
+            nxt = text[i + 1]
+            if nxt in _OBO_UNESCAPE:
+                out.append(_OBO_UNESCAPE[nxt])
+                i += 2
+                continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+_DBXREF_STRUCTURAL_ESCAPES = frozenset({"\\", ",", '"', "{", "}"})
+_DBXREF_QUOTED_STRUCTURAL = frozenset({"\\", '"'})
+_DBXREF_MOD_STRUCTURAL = frozenset({"\\", '"', "{", "}"})
+
+
+def _should_preserve_id_ws_escape(text: str, pos: int, chunk_start: int, in_id_part: bool) -> bool:
+    r"""Keep \W / \t escaped when decoding it would merge identifier content with separator whitespace."""
+    if not in_id_part:
+        return False
+    n = len(text)
+
+    j = pos
+    has_literal_ws = False
+    while j > chunk_start:
+        if text[j - 1] in (" ", "\t"):
+            has_literal_ws = True
+            j -= 1
+        elif j - 2 >= chunk_start and text[j - 2] == "\\" and text[j - 1] in ("W", "t"):
+            bs = 0
+            k_bs = j - 3
+            while k_bs >= chunk_start and text[k_bs] == "\\":
+                bs += 1
+                k_bs -= 1
+            if bs % 2 == 1:
+                break
+            j -= 2
+        else:
+            break
+    run_start = j
+
+    k = pos + 2
+    while k < n:
+        if text[k] in (" ", "\t"):
+            has_literal_ws = True
+            k += 1
+        elif text[k] == "\\" and k + 1 < n and text[k + 1] in ("W", "t"):
+            k += 2
+        else:
+            break
+    run_end = k
+
+    at_chunk_start = chunk_start > 0 and run_start == chunk_start
+    at_list_start = run_start == 0
+    before_sep = run_end < n and text[run_end] in (",", '"', "{")
+    at_list_end = run_end == n
+
+    if at_chunk_start or before_sep:
+        return True
+    if (at_list_start or at_list_end) and has_literal_ws:
+        return True
+    return False
+
+
+def _unescape_dbxref_list(text: str) -> str:
+    """Decode content escapes in a DBxref citation list while preserving citation syntax."""
+    if "\\" not in text:
+        return text
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    chunk_start = 0
+    in_quotes = False
+    in_braces = False
+    in_brace_quotes = False
+    in_id_part = True
+    while i < n:
+        ch = text[i]
+        if ch == "\\" and i + 1 < n:
+            nxt = text[i + 1]
+            if in_quotes or in_brace_quotes:
+                keep = _DBXREF_QUOTED_STRUCTURAL
+            elif in_braces:
+                keep = _DBXREF_MOD_STRUCTURAL
+            else:
+                keep = _DBXREF_STRUCTURAL_ESCAPES
+            if nxt in keep or (
+                not in_quotes
+                and not in_braces
+                and nxt in ("W", "t")
+                and _should_preserve_id_ws_escape(text, i, chunk_start, in_id_part)
+            ):
+                out.append(text[i : i + 2])
+                i += 2
+                continue
+            if nxt in _OBO_UNESCAPE:
+                out.append(_OBO_UNESCAPE[nxt])
+                i += 2
+                continue
+        if in_braces:
+            if ch == '"':
+                in_brace_quotes = not in_brace_quotes
+            elif ch == "}" and not in_brace_quotes:
+                in_braces = False
+        elif in_quotes:
+            if ch == '"':
+                in_quotes = False
+        else:
+            if ch == '"':
+                in_quotes = True
+                in_id_part = False
+            elif ch == "{":
+                in_braces = True
+                in_id_part = False
+            elif ch == ",":
+                chunk_start = i + 1
+                in_id_part = True
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+_XREF_UNIPROT_RE = re.compile(rf'^xref:\s+(uniprot\.ptm):((?:[^\s\\{{!"]|\\.)+){_OBO_TRAILING}')
 _SUBSET_SLIM_RE = re.compile(r"^subset:\s+PSI-MOD-slim")
 
 
@@ -150,18 +300,18 @@ def _build_entry(block: list[tuple[int, str]], path: Path, issues: _Issues) -> P
                 token = line[8:].split(maxsplit=1)
                 entry_id = _convert(int, token[0] if token else "", "id", f"{path}, line {lineno}")
         elif line.startswith("name: "):
-            name = line[6:]
+            name = _unescape_obo(line[6:])
         elif line.startswith("def: "):
             m = _DEF_RE.match(line)
             if m:
-                definition = m.group(1)
-                definition_ref = m.group(2).strip()
+                definition = _unescape_obo(m.group(1))
+                definition_ref = _unescape_dbxref_list(m.group(2).strip())
             else:
                 issues.line("def:", lineno, line)
         elif line.startswith("synonym: "):
             m = _SYNONYM_RE.match(line)
             if m:
-                value, scope, type_str = m.group(1), m.group(2), m.group(3)
+                value, scope, type_str = _unescape_obo(m.group(1)), m.group(2), m.group(3)
                 syn_type = issues.enum_value(SynonymType, "synonym type", type_str, lineno)
                 synonyms.append(Synonym(value=value, type=syn_type, scope=scope))
             else:
@@ -182,24 +332,25 @@ def _build_entry(block: list[tuple[int, str]], path: Path, issues: _Issues) -> P
         elif _SUBSET_SLIM_RE.match(line):
             in_slim_subset = True
         elif line.startswith("comment: "):
-            comment = line[9:]
+            comment = _unescape_obo(line[9:])
         elif line == "is_obsolete: true":
             is_obsolete = True
         elif line.startswith("xref: "):
             # Pre-1.039 uniprot.ptm form, unquoted with no space: "xref: uniprot.ptm:PTM-0369"
             m = _XREF_UNIPROT_RE.match(line)
             if m:
-                xref_uniprot_ptm = m.group(2)
+                xref_uniprot_ptm = _unescape_obo(m.group(2))
                 continue
             # Standard xref: KEY: "VALUE"; an empty value ("") means no value, like an absent xref
             m = _XREF_RE.match(line)
             if m:
-                if m.group(2):
-                    xrefs[m.group(1)] = (m.group(2), lineno)
+                xref_val = _unescape_obo(m.group(2))
+                if xref_val:
+                    xrefs[m.group(1)] = (xref_val, lineno)
                     # Unimod is the one xref PSI-MOD repeats with different values (e.g. MOD:01506
                     # lists Unimod:214 and Unimod:889); keep each one, not only the last.
-                    if m.group(1) == "Unimod" and m.group(2) not in unimod_xrefs:
-                        unimod_xrefs.append(m.group(2))
+                    if m.group(1) == "Unimod" and xref_val not in unimod_xrefs:
+                        unimod_xrefs.append(xref_val)
             else:
                 issues.line("xref:", lineno, line)
 
