@@ -224,8 +224,10 @@ def _parse_citation_chunk(chunk: str) -> tuple[str, str, str | None, str, str | 
     else:
         ws2 = ws
 
-    # Must be at '{' starting trailing modifier
-    if chunk[i] != "{":
+    # Must be at '{' starting trailing modifier. Unreachable: the scan above stops only on
+    # '"', '{' or '}', '}' has returned already and '"' took the branch above, so this is '{'.
+    # Kept as a guard in case that scan grows another stop character.
+    if chunk[i] != "{":  # pragma: no cover - 299593 generated chunks never reach it
         return None
     i += 1
     mod_start = i

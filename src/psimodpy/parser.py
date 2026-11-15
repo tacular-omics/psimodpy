@@ -428,7 +428,18 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
     Recoverable problems are reported with ``warnings.warn`` and do not abort the
     load: a [Term] without an id or name is skipped; an unknown synonym type,
     relationship type, TermSpec or Source is kept as a plain string; and a line
-    whose syntax is not recognised is dropped.
+    whose syntax is not recognised is dropped. A ``def:``, ``synonym:`` or ``xref:``
+    line whose quoted value holds an unescaped quote is one of those: it is reported
+    and dropped rather than silently truncated at the quote.
+
+    OBO 1.2 escapes are decoded in every value except ``definition_ref``, which keeps
+    the escapes that carry citation-list syntax (``\\,`` ``\\"`` ``\\{`` ``\\}``
+    ``\\\\``, and ``\\W``/``\\t`` where they stand next to a separator) and decodes
+    only the content ones, because the field is one flat string and a decoded ``\\,``
+    would be indistinguishable from the comma between two citations. So a
+    ``definition_ref`` that is not a citation list, such as ``'DB:a}b'``, comes back
+    from a write and a re-parse as its escaped form ``'DB:a\\}b'``, and stays there on
+    every later round trip.
     """
     from psimodpy.database import PsiModDatabase
 
