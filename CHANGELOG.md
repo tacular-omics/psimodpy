@@ -10,6 +10,21 @@
   backslashes, brackets, newlines or tabs round-trip intact instead of corrupting or dropping
   values.
 
+### Changed
+
+- A `def:`, `synonym:` or `xref:` line whose quoted value holds an **unescaped** quote is now
+  reported with a `UserWarning` and dropped, where it used to be silently truncated at that
+  quote. A file written by psimodpy 1.2.0 or earlier that holds such a value is affected: a
+  definition of `A 5" [sic] rod` was written unescaped and read back as `A 5` with a
+  `definition_ref` of `sic`, and now reads back as `""` with the line named in the warning.
+  Re-write the file with this version to get the escaped, re-readable form.
+- `definition_ref` keeps the escapes that carry citation-list syntax (`\,` `\"` `\{` `\}`
+  `\\`, and `\W`/`\t` next to a separator) and decodes only the content ones, because the
+  field is one flat string in which a decoded `\,` could not be told from the comma between
+  two citations. A `definition_ref` that is not a citation list is therefore re-encoded once
+  into its escaped form (`DB:a}b` becomes `DB:a\}b`) and is unchanged by every later round
+  trip. Genuine citation lists, which is all the ontology carries, round-trip byte for byte.
+
 ## [1.2.0] (2026-11-06)
 
 ### Changed
