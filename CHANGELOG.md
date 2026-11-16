@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- `write_tsv` now writes a `definition_ref` column, the citation list of each definition
+  (`ChEBI:15811, ..., RESID:AA0037`, as stored on `entry.definition_ref`), which it used to
+  drop. It is appended after `xrefs_unimod`, so every existing column keeps its position and
+  the header has 37 columns instead of 36.
 - A source with no `[Term]` stanza no longer loads as an empty database. `parse_obo` (and so
   `load`) raises `PsimodParseError`, naming the file, for an HTML error page, an empty file, a
   plain-text file, a header-only file or a file with only `[Typedef]` stanzas, where it used
