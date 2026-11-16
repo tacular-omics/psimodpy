@@ -19,7 +19,7 @@ pytest.importorskip("mcp")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from psimodpy.server.app import app  # noqa: E402
+from psimodpy.server.app import _db, app  # noqa: E402
 from psimodpy.server.models import PsiModEntry, PsiModSummary  # noqa: E402
 from psimodpy.server.references import parse_definition_ref  # noqa: E402
 
@@ -172,6 +172,40 @@ def test_rest_search_returns_summaries() -> None:
         assert {"query", "total", "limit", "items"} <= set(body)
         for item in body["items"]:
             PsiModSummary.model_validate(item)
+
+
+def test_rest_get_entry_by_name_where_the_name_holds_a_slash() -> None:
+    name = "oxazole/thiazole ring crosslinked residues"
+    with TestClient(app) as client:
+        r = client.get(f"/api/entries/by-name/{name}")
+        assert r.status_code == 200
+        assert r.json()["accession"] == "MOD:00690"
+
+
+def test_rest_every_slash_name_is_reachable_by_name() -> None:
+    names = [entry.name for entry in _db if "/" in entry.name]
+    assert names
+    with TestClient(app) as client:
+        for name in names:
+            r = client.get(f"/api/entries/by-name/{name}")
+            assert r.status_code == 200, (name, r.status_code)
+
+
+def test_rest_get_entry_by_name_percent_encoded_slash() -> None:
+    path = "/api/entries/by-name/oxazole%2Fthiazole%20ring%20crosslinked%20residues"
+    with TestClient(app) as client:
+        r = client.get(path)
+        assert r.status_code == 200
+        assert r.json()["accession"] == "MOD:00690"
+
+
+def test_rest_get_entry_by_name_keeps_its_404_for_an_unknown_name() -> None:
+    with TestClient(app) as client:
+        r = client.get("/api/entries/by-name/O-phospho-L-serine")
+        assert r.status_code == 200
+        r = client.get("/api/entries/by-name/no such name")
+        assert r.status_code == 404
+        assert r.json() == {"detail": "No entry for name='no such name'"}
 
 
 # ---------------------------------------------------------------------------

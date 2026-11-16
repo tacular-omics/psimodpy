@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- `GET /api/entries/by-name/{name}` now finds the nine modifications whose names hold a
+  `/`, such as `oxazole/thiazole ring crosslinked residues` (MOD:00690). The path parameter
+  matched a single segment, so those requests fell through to the MCP mount and answered a
+  bare `404 Not Found` instead of the entry.
 - OBO parser and writer now decode and escape OBO 1.2 escape sequences (`\n`, `\W`, `\t`,
   `\:`, `\,`, `\"`, `\\`, `\(`, `\)`, `\[`, `\]`, `\{`, `\}`) in quoted and
   free-text fields, so names, definitions, synonyms, comments and xrefs containing quotes,

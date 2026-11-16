@@ -215,7 +215,7 @@ def get_entry(id: str) -> PsiModEntry:
     return to_psimod_entry(entry)
 
 
-@app.get("/api/entries/by-name/{name}", response_model=PsiModEntry)
+@app.get("/api/entries/by-name/{name:path}", response_model=PsiModEntry)
 def get_entry_by_name(name: str) -> PsiModEntry:
     entry = _db.get_by_name(name)
     if entry is None:
