@@ -203,7 +203,7 @@ class _Issues:
     def line(self, key: str, lineno: int, line: str) -> None:
         self.unrecognised.setdefault(key, []).append((lineno, line))
 
-    def warn(self, path: Path) -> None:
+    def warn(self, path: Path | str) -> None:
         for (field, value), lines in self.unknown.items():
             warnings.warn(
                 f"{path}: unknown {field} {value!r} kept as a plain string ({len(lines)} occurrence(s), "
@@ -274,7 +274,7 @@ def _parse_mod_id(mod_str: str) -> int:
     return int(mod_str[4:])
 
 
-def _build_entry(block: list[tuple[int, str]], path: Path, issues: _Issues) -> PsiModEntry | None:
+def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues) -> PsiModEntry | None:
     """Parse the numbered OBO lines of one [Term] block into a PsiModEntry.
 
     Returns None (with a warning) for a block without an id or name. Raises
@@ -422,7 +422,10 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
 
     Raises:
         PsimodParseError: for a malformed id, mass, charge or remap value (the message
-            names the file, line and entry).
+            names the file, line and entry), and for a file with no ``[Term]`` stanza at
+            all, such as an empty file, a plain-text file, an HTML error page or a file
+            that holds only a header (the message names the file). Such a file would
+            otherwise load as an empty database that answers every lookup with nothing.
         PsimodError: if two terms share an id.
 
     Recoverable problems are reported with ``warnings.warn`` and do not abort the
@@ -441,18 +444,28 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
     from a write and a re-parse as its escaped form ``'DB:a\\}b'``, and stays there on
     every later round trip.
     """
+    path = Path(path)
+    return _parse_obo(path, path)
+
+
+def _parse_obo(path: Path, shown: Path | str) -> PsiModDatabase:
+    """Parse ``path``, naming ``shown`` in every message.
+
+    ``shown`` differs from ``path`` only when a file is parsed under a temporary name, as
+    ``download`` does, so that errors name the file the user asked for.
+    """
     from psimodpy.database import PsiModDatabase
 
-    path = Path(path)
     issues = _Issues()
     entries: list[PsiModEntry] = []
     header_lines: list[str] = []
     current_block: list[tuple[int, str]] = []
     in_term = False
     past_header = False
+    seen_term = False
 
     def flush() -> None:
-        entry = _build_entry(current_block, path, issues)
+        entry = _build_entry(current_block, shown, issues)
         if entry is not None:
             entries.append(entry)
 
@@ -463,6 +476,7 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
             if line == "[Term]":
                 if in_term and current_block:
                     flush()
+                seen_term = True
                 in_term = True
                 past_header = True
                 current_block = []
@@ -493,7 +507,13 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
     if in_term and current_block:
         flush()
 
-    issues.warn(path)
+    if not seen_term:
+        raise PsimodParseError(
+            f"{shown}: no [Term] stanza found, so this is not a PSI-MOD OBO file "
+            "(an empty file, a plain-text file, an HTML error page or a header-only file?)"
+        )
+
+    issues.warn(shown)
     while header_lines and header_lines[-1] == "":
         header_lines.pop()
     return PsiModDatabase(entries, header_lines=tuple(header_lines))
