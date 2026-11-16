@@ -309,3 +309,54 @@ def test_parse_obo_str_path(tmp_path):
     db_str = psimodpy.parse_obo(str(dest))
     db_path = psimodpy.parse_obo(dest)
     assert len(db_str) == len(db_path) == 2116
+
+
+class TestSourceWithNoTermStanza:
+    """A source with no [Term] stanza is not a PSI-MOD file; it must not load as an empty database."""
+
+    BODIES = {
+        "html": "<html><body><h1>404: Not Found</h1></body></html>\n",
+        "empty": "",
+        "plain-text": "this is not an OBO file\n",
+        "header-only": "format-version: 1.2\nontology: mod\n",
+        "typedef-only": "format-version: 1.2\n\n[Typedef]\nid: part_of\nname: part_of\n",
+    }
+
+    @pytest.mark.parametrize("body", BODIES.values(), ids=BODIES.keys())
+    def test_parse_obo_raises_naming_the_file(self, tmp_path, body):
+        path = tmp_path / "source.obo"
+        path.write_text(body, encoding="utf-8")
+        with pytest.raises(psimodpy.PsimodParseError, match="no \\[Term\\] stanza") as info:
+            psimodpy.parse_obo(path)
+        assert str(path) in str(info.value)
+
+    def test_str_path_is_accepted_and_named(self, tmp_path):
+        path = tmp_path / "source.obo"
+        path.write_text("", encoding="utf-8")
+        with pytest.raises(psimodpy.PsimodParseError, match="source.obo"):
+            psimodpy.parse_obo(str(path))
+
+    def test_load_raises_for_such_a_source(self, tmp_path):
+        path = tmp_path / "source.obo"
+        path.write_text(self.BODIES["html"], encoding="utf-8")
+        with pytest.raises(psimodpy.PsimodParseError):
+            psimodpy.load(path)
+
+    def test_a_term_that_is_skipped_still_counts_as_a_stanza(self, tmp_path):
+        path = tmp_path / "source.obo"
+        path.write_text("format-version: 1.2\n\n[Term]\nname: no id\n", encoding="utf-8")
+        with pytest.warns(UserWarning, match="skipped"):
+            db = psimodpy.parse_obo(path)
+        assert len(db) == 0
+
+    def test_bundled_database_still_loads_in_full(self):
+        assert len(psimodpy.load()) == 2116
+
+    def test_database_can_still_be_built_empty(self):
+        assert len(psimodpy.PsiModDatabase([])) == 0
+
+    def test_written_empty_database_is_not_read_back_as_empty(self, tmp_path):
+        out = tmp_path / "empty.obo"
+        psimodpy.write_obo(psimodpy.PsiModDatabase([]), out)
+        with pytest.raises(psimodpy.PsimodParseError):
+            psimodpy.parse_obo(out)
