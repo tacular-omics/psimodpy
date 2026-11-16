@@ -25,10 +25,11 @@ def download(dest: Path | str | None = None, *, force: bool = False) -> Path:
         Path to the downloaded file.
 
     Raises:
-        PsimodParseError: if the response is not a PSI-MOD OBO file, for example an HTML
-            error page served with status 200 or an empty body. Nothing is cached then:
-            an existing file at the destination is left as it was and no temporary file
-            remains. The message names the destination.
+        PsimodParseError: if the response is not a usable PSI-MOD OBO file, for example an
+            HTML error page served with status 200, an empty body, bytes that are not UTF-8
+            text, or a file the parser rejects for a malformed value or a duplicate id.
+            Nothing is cached then: an existing file at the destination is left as it was
+            and no temporary file remains. The message names the destination once.
     """
     target = Path(dest) if dest is not None else _CACHE_FILE
     if target.exists() and not force:
@@ -49,26 +50,32 @@ def download(dest: Path | str | None = None, *, force: bool = False) -> Path:
     return target
 
 
+_REJECTED = "Download rejected, nothing cached and any existing file left unchanged"
+
+
 def _check_obo(tmp: Path, target: Path) -> None:
     """Raise PsimodParseError, naming ``target``, unless ``tmp`` holds a parseable OBO file.
 
     A 200 response can still carry an HTML error page, so a download that succeeded at the
-    HTTP level is not yet a usable file. Warnings are muted here: they are reported when the
-    cached file is loaded, and would otherwise be reported twice.
+    HTTP level is not yet a usable file. Every reason the parser has to refuse the file is
+    one of those, duplicate ids included, so PsimodError is caught rather than only its
+    PsimodParseError subclass: the caller is told what was rejected and which file it kept.
+    ``target`` is named once, by the parser's own message where that message carries it and
+    by the prefix otherwise. Warnings are muted here: they are reported when the cached file
+    is loaded, and would otherwise be reported twice.
     """
-    from psimodpy.errors import PsimodParseError
+    from psimodpy.errors import PsimodError, PsimodParseError
     from psimodpy.parser import _parse_obo
 
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             _parse_obo(tmp, target)
-    except PsimodParseError as exc:
-        raise PsimodParseError(f"Download rejected, {target} left unchanged: {exc}") from exc
+    except PsimodError as exc:
+        detail = str(exc) if str(target) in str(exc) else f"{target}: {exc}"
+        raise PsimodParseError(f"{_REJECTED}: {detail}") from exc
     except UnicodeDecodeError as exc:
-        raise PsimodParseError(
-            f"Download rejected, {target} left unchanged: the response is not UTF-8 text ({exc.reason})"
-        ) from exc
+        raise PsimodParseError(f"{_REJECTED}: {target}: the response is not UTF-8 text ({exc.reason})") from exc
 
 
 def download_obo(dest: Path | str | None = None, *, force: bool = False) -> Path:

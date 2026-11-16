@@ -9,12 +9,13 @@
   plain-text file, a header-only file or a file with only `[Typedef]` stanzas, where it used
   to return an empty database that answered every lookup with `None` or `[]`. `download()`
   now parses the file before it renames it into place, so a 200 response carrying an error
-  page raises `PsimodParseError` naming the destination instead of being cached: an existing
-  cache file is left untouched, no `.part` file remains, and `load(refresh=True)` no longer
-  keeps returning an empty database until the cache file is deleted by hand. **Behaviour
-  change:** writing an empty database with `write_obo` and reading it back now raises instead
-  of returning an empty database. `PsiModDatabase([])` still constructs, and the bundled
-  database still loads with 2116 entries.
+  page, bytes that are not UTF-8 text, or a file the parser rejects for a malformed value or
+  a duplicate id raises `PsimodParseError` naming the destination instead of being cached: an
+  existing cache file is left untouched, no `.part` file remains, and `load(refresh=True)` no
+  longer keeps returning an empty database until the cache file is deleted by hand.
+  **Behaviour change:** writing an empty database with `write_obo` and reading it back now
+  raises instead of returning an empty database. `PsiModDatabase([])` still constructs, and
+  the bundled database still loads with 2116 entries.
 - `GET /api/entries/by-name/{name}` now finds the nine modifications whose names hold a
   `/`, such as `oxazole/thiazole ring crosslinked residues` (MOD:00690). The path parameter
   matched a single segment, so those requests fell through to the MCP mount and answered a

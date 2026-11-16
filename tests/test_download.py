@@ -159,3 +159,36 @@ def test_download_does_not_repeat_parse_warnings(tmp_path):
             download(dest=dest)
 
     assert caught == []
+
+
+DUPLICATE_ID_OBO = b"format-version: 1.2\n\n[Term]\nid: MOD:00046\nname: a\n\n[Term]\nid: MOD:00046\nname: b\n"
+
+
+def test_a_response_with_a_duplicate_id_is_rejected_and_names_the_destination(tmp_path):
+    """A duplicate id raises PsimodError, which is not PsimodParseError, so it must be wrapped too."""
+    cached = tmp_path / "PSI-MOD.obo"
+    cached.write_bytes(VALID_OBO)
+
+    with patch("psimodpy._download.urllib.request.urlopen", return_value=_response(DUPLICATE_ID_OBO)):
+        with pytest.raises(psimodpy.PsimodParseError) as info:
+            download(dest=cached, force=True)
+
+    assert str(cached) in str(info.value)
+    assert ".part" not in str(info.value)
+    assert cached.read_bytes() == VALID_OBO
+    assert [p.name for p in tmp_path.iterdir()] == ["PSI-MOD.obo"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [BAD_BODIES["html"], BAD_BODIES["binary"], DUPLICATE_ID_OBO],
+    ids=["html", "binary", "duplicate-id"],
+)
+def test_a_rejection_names_the_destination_exactly_once(tmp_path, body):
+    dest = tmp_path / "PSI-MOD.obo"
+
+    with patch("psimodpy._download.urllib.request.urlopen", return_value=_response(body)):
+        with pytest.raises(psimodpy.PsimodParseError) as info:
+            download(dest=dest)
+
+    assert str(info.value).count(str(dest)) == 1
