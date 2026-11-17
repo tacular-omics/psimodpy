@@ -238,3 +238,58 @@ def test_getitem_falls_back_to_name(db):
 def test_get_by_id_non_int_or_str_returns_none(db):
     assert db.get_by_id(34.0) is None  # ty: ignore[invalid-argument-type]
     assert db.get_by_id(None) is None  # ty: ignore[invalid-argument-type]
+
+
+def test_resolve_follows_redirect(db):
+    assert db.get_by_id(407).is_obsolete
+    assert db.resolve(407) is db.get_by_id(599)
+    assert db.resolve("MOD:00407") is db.get_by_id(599)
+    assert not db.resolve(407).is_obsolete
+
+
+def test_resolve_live_and_unknown(db):
+    assert db.resolve(1) is db.get_by_id(1)
+    assert db.resolve("MOD:00001") is db.get_by_id(1)
+    assert db.resolve(99999) is None
+    assert db.resolve("foo") is None
+    assert db.resolve(True) is None
+
+
+def test_resolve_self_redirect_terminates(db):
+    entry = db.get_by_id(1123)
+    assert entry.xref_remap == 1123
+    assert db.resolve(1123) is entry
+
+
+def test_resolve_dead_chain_returns_last_obsolete_term(db):
+    assert db.get_by_id(580).xref_remap == 579
+    end = db.resolve(580)
+    assert end is db.get_by_id(579)
+    assert end.is_obsolete and end.xref_remap is None
+
+
+def test_resolve_every_obsolete_term_terminates(db):
+    for entry in db:
+        assert db.resolve(entry.id) is not None
+
+
+def test_resolve_cycle_terminates(db):
+    import dataclasses
+
+    from psimodpy.database import PsiModDatabase
+
+    base = db.get_by_id(1)
+    a = dataclasses.replace(base, id=90001, is_obsolete=True, xref_remap=90002)
+    b = dataclasses.replace(base, id=90002, name="b", is_obsolete=True, xref_remap=90001)
+    cyc = PsiModDatabase([a, b])
+    assert cyc.resolve(90001) is b
+    assert cyc.resolve(90002) is a
+
+
+def test_resolve_redirect_to_missing_id_returns_last_existing_term(db):
+    import dataclasses
+
+    from psimodpy.database import PsiModDatabase
+
+    a = dataclasses.replace(db.get_by_id(1), id=90001, is_obsolete=True, xref_remap=99999)
+    assert PsiModDatabase([a]).resolve(90001) is a
