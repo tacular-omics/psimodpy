@@ -132,7 +132,7 @@ From `psimodpy/__init__.py` (`__all__`):
 - Writing: `write_tsv(entries, path, *, delimiter="\t")`,
   `write_obo(entries, path, *, header_lines=())`.
 - Database: `PsiModDatabase` with `db[id]` (PsimodKeyError, a KeyError), `get_by_id`, `resolve(id)` (follows `xref_remap`, cycle-safe), `get_by_name`,
-  `search`, `get_by_origin`, `get_parents`, `get_children`, `get_related(entry, rel_type)`,
+  `search`, `get_by_origin`, `get_parents`, `get_children`, `get_ancestors(entry|id)`, `get_descendants(entry|id)` (transitive `is_a`, BFS, each once, excluding the term), `is_descendant_of(entry|id, ancestor)`, `get_related(entry, rel_type)`,
   `filter(*, include_obsolete=False, slim_only=False)`, `write_tsv`, `write_obo`,
   `header_lines`, `len()`, iteration.
 - Models: `PsiModEntry` (computed `dict_composition`, `dict_formula`, `proforma_formula`;
