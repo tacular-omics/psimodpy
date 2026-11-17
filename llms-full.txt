@@ -250,8 +250,12 @@ is_a relationships xrefs_unimod definition_ref
 - `id`, `xref_remap`, `is_a` are written as `MOD:NNNNN`; `is_a` and
   `relationships` are joined with `"; "` (`derives_from:MOD:01880`).
 - Booleans are `1`/`0`; `None` is an empty cell.
-- Only the **first** synonym of each type is written, so TSV is lossy for
-  synonyms. Use `write_obo` for a lossless export.
+- Every synonym is written: an entry with several synonyms of one type gets
+  them all in that type's column, in file order, joined by `" | "`. Synonym
+  values themselves contain `"; "`, which is why those columns do not use it.
+  Use `write_obo` for an export that re-parses to equal entries.
+- `definition_ref` is the citation list exactly as stored on the entry,
+  comma-separated (`ChEBI:15811, ..., RESID:AA0037`), not `"; "`-joined.
 
 ### `psimodpy.write_obo(entries, path, *, header_lines=()) -> Path`
 
