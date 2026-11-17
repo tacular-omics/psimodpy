@@ -191,7 +191,29 @@ def test_xrefs_unimod_column(db: PsiModDatabase, tmp_path) -> None:
     row = next(r for r in rows if r["id"] == "MOD:01506")
     assert row["xrefs_unimod"] == "Unimod:214; Unimod:889"
     header = out.read_text().splitlines()[0].split("\t")
-    assert header[-1] == "xrefs_unimod"  # appended last so older columns keep their positions
+    # xrefs_unimod keeps its index: later columns are appended after it, never inserted before it
+    assert header.index("xrefs_unimod") == len(_FIXED_PREFIX) + len(_synonym_columns(header)) + 2
+
+
+def _synonym_columns(header):
+    return [c for c in header if c.startswith("synonym_")]
+
+
+def test_definition_ref_column(db: PsiModDatabase, tmp_path) -> None:
+    out = tmp_path / "out.tsv"
+    write_tsv(db, out)
+    header = _read(out)[0]
+    assert "definition_ref" in header
+    assert header[-1] == "definition_ref"  # appended, so no existing column moved
+    # 20 fixed prefix + 3 existing suffix columns + definition_ref + one column per synonym type
+    assert len(header) == len(_FIXED_PREFIX) + len(_synonym_columns(header)) + 3 + 1
+    assert len(header) == 37
+    rows = _read_dict(out)
+    row = next(r for r in rows if r["id"] == "MOD:00046")
+    assert row["definition_ref"] == db[46].definition_ref
+    assert row["definition_ref"].startswith("ChEBI:15811, ")
+    assert "RESID:AA0037" in row["definition_ref"]
+    assert sum(1 for r in rows if r["definition_ref"]) == sum(1 for e in db if e.definition_ref)
 
 
 def test_optional_fields_empty_not_none(db: PsiModDatabase, tmp_path) -> None:
