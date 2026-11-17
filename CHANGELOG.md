@@ -9,7 +9,7 @@
   `None`. It takes the ids `get_by_id` takes. It tracks visited ids, so a self-redirect
   (`MOD:01123`) or any longer cycle ends; a chain that dies on an obsolete term with no
   redirect (`MOD:00580` to `MOD:00579`) or redirects to an id not in the database returns the
-  last term reached, so check `is_obsolete` on the result. The name is open to preference.
+  last term reached, so check `is_obsolete` on the result.
 
 ### Fixed
 

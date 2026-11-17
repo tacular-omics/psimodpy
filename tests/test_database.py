@@ -269,7 +269,10 @@ def test_resolve_dead_chain_returns_last_obsolete_term(db):
 
 
 def test_resolve_every_obsolete_term_terminates(db):
-    for entry in db:
+    obsolete = [entry for entry in db if entry.is_obsolete]
+    assert len(obsolete) > 0
+    assert sum(1 for entry in obsolete if entry.xref_remap is not None) > 0
+    for entry in obsolete:
         assert db.resolve(entry.id) is not None
 
 
