@@ -124,13 +124,18 @@ claude mcp add psi-mod http://localhost:8000/mcp --transport http
 | `psimodpy.write_obo(entries, path, *, header_lines)` | Write entries back to PSI-MOD OBO format. |
 
 **`PsiModDatabase`**: `db[id]`, `get_by_id`, `resolve`, `get_by_name`, `search`, `get_by_origin`,
-`get_by_site`, `search_mass`, `get_parents`, `get_children`, `get_related`, `filter`,
+`get_by_site`, `search_mass`, `get_parents`, `get_children`, `get_ancestors`, `get_descendants`,
+`is_descendant_of`, `get_related`, `filter`,
 `write_tsv`, `write_obo`, `header_lines`.
 
 `search_mass(delta, *, tolerance=0.01, tolerance_unit="da", site=None, position=None,
 include_obsolete=False)` returns `(entry, delta - diff_mono)` pairs within `tolerance` Da
 (edges inclusive), closest first; `site` may list several residues (`"STY"`), while
 `get_by_site(site)` takes exactly one.
+
+`get_ancestors(entry)` and `get_descendants(entry)` follow `is_a` all the way up or down
+(entry or id in, list of entries out, each term once, breadth-first, never the term itself);
+`is_descendant_of(entry, ancestor)` is the membership test. Unknown ids give `[]` / `False`.
 
 **`PsiModEntry`** fields: `id`, `name`, `definition`, `definition_ref`, `synonyms`, `is_a`,
 `relationships`, `origin`, `diff_mono`, `diff_avg`, `diff_formula`, `mass_mono`, `mass_avg`,
