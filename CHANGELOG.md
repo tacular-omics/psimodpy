@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `PsiModDatabase.resolve(id)` follows `xref_remap` from an obsolete term to its current
+  term (`MOD:00407` gives `MOD:00599`), a live term resolves to itself and an unknown id gives
+  `None`. It takes the ids `get_by_id` takes. It tracks visited ids, so a self-redirect
+  (`MOD:01123`) or any longer cycle ends; a chain that dies on an obsolete term with no
+  redirect (`MOD:00580` to `MOD:00579`) or redirects to an id not in the database returns the
+  last term reached, so check `is_obsolete` on the result. The name is open to preference.
+
 ### Fixed
 
 - `write_tsv` now writes a `definition_ref` column, the citation list of each definition
