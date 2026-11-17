@@ -296,3 +296,103 @@ def test_resolve_redirect_to_missing_id_returns_last_existing_term(db):
 
     a = dataclasses.replace(db.get_by_id(1), id=90001, is_obsolete=True, xref_remap=99999)
     assert PsiModDatabase([a]).resolve(90001) is a
+
+
+# ----------------------------------------------------------------------
+# Transitive is_a queries
+# ----------------------------------------------------------------------
+
+
+def _naive_ancestor_ids(db, entry):
+    """Reference implementation: recursive union, no ordering."""
+    out = set()
+    for p in db.get_parents(entry):
+        out.add(p.id)
+        out |= _naive_ancestor_ids(db, p)
+    return out
+
+
+def test_bundled_is_a_shape(db):
+    """The figures the transitive queries were sized against."""
+    roots = [e for e in db if not db.get_parents(e)]
+    assert len(roots) == 147
+    assert sum(1 for e in db if len(e.is_a) > 1) == 1194
+
+    def depth(e):
+        return 1 + max((depth(p) for p in db.get_parents(e)), default=-1)
+
+    assert max(depth(e) for e in db) == 9
+
+
+def test_every_parent_is_an_ancestor_and_roots_have_none(db):
+    for entry in db:
+        ancestor_ids = {a.id for a in db.get_ancestors(entry)}
+        assert {p.id for p in db.get_parents(entry)} <= ancestor_ids
+        assert entry.id not in ancestor_ids
+        if not db.get_parents(entry):
+            assert db.get_ancestors(entry) == []
+
+
+def test_ancestors_match_naive_recursion_and_are_unique(db):
+    for entry in db:
+        ids = [a.id for a in db.get_ancestors(entry)]
+        assert len(ids) == len(set(ids))
+        assert set(ids) == _naive_ancestor_ids(db, entry)
+
+
+def test_two_parent_term_lists_each_ancestor_once(db):
+    ancestors = db.get_ancestors(2)  # parents 396 and 916 share ancestors
+    ids = [a.id for a in ancestors]
+    assert ids[:2] == [396, 916]
+    assert len(ids) == len(set(ids))
+    assert ids == [a.id for a in db.get_ancestors(db[2])]  # id and entry agree
+
+
+def test_ancestors_order_is_breadth_first(db):
+    entry = db[2]
+    ids = [a.id for a in db.get_ancestors(entry)]
+    level1 = [p.id for p in db.get_parents(entry)]
+    assert ids[: len(level1)] == level1
+
+
+def test_descendants_mirror_ancestors(db):
+    for entry in db:
+        descendants = db.get_descendants(entry)
+        ids = [d.id for d in descendants]
+        assert len(ids) == len(set(ids))
+        assert entry.id not in ids
+        assert [c.id for c in db.get_children(entry)] == ids[: len(db.get_children(entry))]
+    root = db[0]
+    for d in db.get_descendants(root):
+        assert root.id in {a.id for a in db.get_ancestors(d)}
+
+
+def test_is_descendant_of(db):
+    parent = db.get_parents(db[2])[0]
+    grand = db.get_ancestors(db[2])[-1]
+    assert db.is_descendant_of(2, parent.id)
+    assert db.is_descendant_of("MOD:00002", grand)
+    assert not db.is_descendant_of(parent.id, 2)
+    assert not db.is_descendant_of(2, 2)
+
+
+def test_transitive_unknown_ids(db):
+    assert db.get_ancestors(99999) == []
+    assert db.get_descendants("foo") == []
+    assert db.get_ancestors(True) == []
+    assert not db.is_descendant_of(99999, 2)
+    assert not db.is_descendant_of(2, 99999)
+
+
+def test_transitive_queries_terminate_on_a_cycle(db):
+    from dataclasses import replace
+
+    from psimodpy import PsiModDatabase
+
+    a = replace(db[1], id=9001, is_a=(9002,))
+    b = replace(db[1], id=9002, is_a=(9001,))
+    cyc = PsiModDatabase([a, b])
+    assert [e.id for e in cyc.get_ancestors(9001)] == [9002]
+    assert [e.id for e in cyc.get_descendants(9001)] == [9002]
+    assert cyc.is_descendant_of(9001, 9002) and cyc.is_descendant_of(9002, 9001)
+    assert not cyc.is_descendant_of(9001, 9001)
