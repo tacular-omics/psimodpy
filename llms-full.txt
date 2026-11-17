@@ -107,6 +107,7 @@ In-memory index over `PsiModEntry` objects.
 | `PsiModDatabase(entries, *, header_lines=())` | build from any iterable of entries; `PsimodError` on a duplicate id |
 | `db[id]` | entry by id, else by name; raises `PsimodKeyError` (a `KeyError` and a `PsimodError`) if absent |
 | `get_by_id(id: int \| str) -> PsiModEntry \| None` | accepts `46`, `"46"`, `"MOD:00046"` (prefix case-insensitive) |
+| `resolve(id: int \| str) -> PsiModEntry \| None` | follow `xref_remap` from an obsolete term to the current one; live term returns itself, unknown id `None`; cycle-safe; a dead end (no redirect, or redirect to a missing id) returns the last term reached, so check `is_obsolete` |
 | `get_by_name(name: str) -> PsiModEntry \| None` | exact name, case-insensitive; for a duplicate name the first non-obsolete entry wins; a non-string returns `None` |
 | `search(query: str) -> list[PsiModEntry]` | case-insensitive substring in name, definition or any synonym; `""` returns all, a non-string `[]` |
 | `search_mass(delta: float, *, tolerance: float = 0.01, tolerance_unit: str = "da", site: str \| None = None, position: str \| None = None, include_obsolete: bool = False) -> list[tuple[Entry, float]]` | (1.1) delta-mass search on `diff_mono`; `(entry, delta - mass)` pairs, closest first; see Mass search below |
@@ -298,11 +299,7 @@ psimod_to_unimod = {
 Resolve an obsolete id to its replacement:
 
 ```python
-def resolve(db, mod_id):
-    e = db.get_by_id(mod_id)
-    while e is not None and e.is_obsolete and e.xref_remap is not None:
-        e = db.get_by_id(e.xref_remap)
-    return e
+e = db.resolve("MOD:00407")   # MOD:00599; check e.is_obsolete for a dead end
 ```
 
 Walk all ancestors of a term:
