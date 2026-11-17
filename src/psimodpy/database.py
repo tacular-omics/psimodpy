@@ -88,6 +88,35 @@ class PsiModDatabase:
             return self._by_id.get(id)
         return None
 
+    def resolve(self, id: int | str) -> PsiModEntry | None:
+        """Follow ``xref_remap`` redirects from an obsolete term to the current term.
+
+        Takes the same id forms as :meth:`get_by_id` and returns None for an id that is not
+        in the database (or is malformed); never raises. A live term resolves to itself,
+        and ``MOD:00407`` resolves to ``MOD:00599``.
+
+        The walk stops on the last term it can reach, so it always terminates. That term is
+        obsolete when the chain has no live end, in the three cases below, so check
+        ``result.is_obsolete`` to tell a dead end from a live replacement:
+
+        * an obsolete term with no redirect (``MOD:00580`` redirects to ``MOD:00579``,
+          itself obsolete with none, so the result is ``MOD:00579``);
+        * a redirect to an id that is not in the database: the last existing term is returned;
+        * a cycle, including a term that redirects to itself (``MOD:01123``): the walk stops
+          before it would revisit a term and returns the last new one reached.
+        """
+        entry = self.get_by_id(id)
+        if entry is None:
+            return None
+        seen = {entry.id}
+        while entry.is_obsolete and entry.xref_remap is not None and entry.xref_remap not in seen:
+            nxt = self._by_id.get(entry.xref_remap)
+            if nxt is None:
+                break
+            seen.add(nxt.id)
+            entry = nxt
+        return entry
+
     def get_by_name(self, name: str) -> PsiModEntry | None:
         """Return the entry with the given name (case-insensitive), or None.
 
