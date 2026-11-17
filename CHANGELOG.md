@@ -38,6 +38,12 @@
   free-text fields, so names, definitions, synonyms, comments and xrefs containing quotes,
   backslashes, brackets, newlines or tabs round-trip intact instead of corrupting or dropping
   values.
+- An `xref:` line that carries an OBO trailing modifier (`{...}`) or a trailing `! comment` is
+  no longer dropped. `xref: Unimod: "Unimod:34" ! note` was reported with a `UserWarning` and
+  lost, costing the term its `xref_unimod`, `xref_remap`, `xref_uniprot_ptm` or `xref_gnome`;
+  it now parses to the same value as the plain form. `def:` and `synonym:` lines already
+  tolerated both. The bundled ontology carries no trailing modifier or comment on an `xref:`
+  line, so only files from elsewhere were affected.
 
 ### Changed
 
