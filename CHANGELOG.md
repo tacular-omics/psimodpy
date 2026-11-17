@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.0] (2026-11-16)
+
 ### Added
 
 - `PsiModDatabase.resolve(id)` follows `xref_remap` from an obsolete term to its current
