@@ -123,7 +123,7 @@ claude mcp add psi-mod http://localhost:8000/mcp --transport http
 | `psimodpy.write_tsv(entries, path, *, delimiter)` | Write entries to a TSV (or CSV) file. |
 | `psimodpy.write_obo(entries, path, *, header_lines)` | Write entries back to PSI-MOD OBO format. |
 
-**`PsiModDatabase`**: `db[id]`, `get_by_id`, `get_by_name`, `search`, `get_by_origin`,
+**`PsiModDatabase`**: `db[id]`, `get_by_id`, `resolve`, `get_by_name`, `search`, `get_by_origin`,
 `get_by_site`, `search_mass`, `get_parents`, `get_children`, `get_related`, `filter`,
 `write_tsv`, `write_obo`, `header_lines`.
 
@@ -141,7 +141,8 @@ include_obsolete=False)` returns `(entry, delta - diff_mono)` pairs within `tole
 
 **Errors**: `PsimodError`, `PsimodParseError` (also a `ValueError`) for malformed OBO input, and
 `PsimodKeyError` (also a `KeyError`) from `db[key]` on a miss. `get_by_id` returns `None` for an
-unknown or malformed id; only `db[key]` raises.
+unknown or malformed id; only `db[key]` raises. `resolve(id)` follows an obsolete term's
+`xref_remap` to the current term (cycle-safe); check `is_obsolete` on the result to spot a dead end.
 
 **Data types**: `AminoAcid`, `Crosslink`, `Synonym` / `SynonymType`, `Relationship` /
 `RelationshipType`, `TermSpec`, `Source`.
