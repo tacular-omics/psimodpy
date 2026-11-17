@@ -115,6 +115,9 @@ In-memory index over `PsiModEntry` objects.
 | `get_by_origin(aa: str) -> list[PsiModEntry]` | entries whose origin includes this one-letter code (case-sensitive) |
 | `get_parents(entry) -> list[PsiModEntry]` | direct `is_a` parents |
 | `get_children(entry) -> list[PsiModEntry]` | entries with `entry` as a direct `is_a` parent |
+| `get_ancestors(entry: PsiModEntry \| int \| str) -> list[PsiModEntry]` | every term above `entry` via `is_a`, each once, breadth-first (direct parents first, in `get_parents` order); never `entry` itself; root or unknown id `[]`; cycle-safe |
+| `get_descendants(entry: PsiModEntry \| int \| str) -> list[PsiModEntry]` | every term below `entry` via `is_a`, each once, breadth-first (direct children first, in `get_children` order); never `entry` itself; leaf or unknown id `[]`; cycle-safe |
+| `is_descendant_of(entry, ancestor) -> bool` | True if `ancestor` is reachable upward from `entry`; both take an entry or an id; False for itself or an unknown id |
 | `get_related(entry, rel_type: RelationshipType) -> list[PsiModEntry]` | targets of `derives_from` / `has_functional_parent` / `contains` / `part_of` links |
 | `filter(*, include_obsolete=False, slim_only=False) -> list[PsiModEntry]` | drop obsolete (default) and optionally keep only the PSI-MOD-slim subset |
 | `write_tsv(path, *, delimiter="\t") -> Path` | export every entry; `delimiter=","` for CSV |
