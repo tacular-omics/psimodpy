@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- `PsiModEntry.xref_smiles` holds the `xref: Smiles` value, an OpenSMILES string for the whole
+  modified residue, which was read as nothing and dropped by `write_obo`. The CV's own field
+  table defines the key as "An OpenSMILES string encoding the full modified residue (residue +
+  modification(s)) with `*` to indicate the backbone bonds", and it is the only key in that
+  table psimodpy did not model. **Who sees a difference:** anyone loading upstream's
+  `PSI-MOD.obo`, which carries 133 of these lines, or writing such a file back out, where the
+  line used to disappear. The bundled snapshot carries none, so `load()` with no argument is
+  unchanged. The key is matched as the CV's README and its released files spell it, `Smiles`;
+  the 2025-04-03 annotation-rules PDF writes `xref: smiles:` in lower case, and no lower-case
+  spelling occurs in any released file, so no second spelling is accepted.
+
 ## [1.3.0] (2026-11-16)
 
 ### Added
