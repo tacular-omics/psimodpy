@@ -338,3 +338,28 @@ def test_write_obo_keeps_a_real_upstream_replaced_by_tag(tmp_path: Path) -> None
     write_obo(parse_obo(path), out)
     assert upstream_line in out.read_text(encoding="utf-8")
     assert parse_obo(out)[306].replaced_by == (2119,)
+
+
+def test_resolve_stops_at_a_term_with_several_replaced_by_tags(tmp_path: Path) -> None:
+    """Several replacements name no single one, so the walk stops and the caller decides.
+
+    Not outside-sourced: no upstream PSI-MOD file carries more than one `replaced_by` tag
+    (measured 2026-11-17 on PSI-MOD.obo and PSI-MOD-newstyle.obo at master, v1.41.0 and
+    v1.40.0), so this input is constructed. It pins the documented limit, because the OBO 1.4
+    guide does allow the shape: "A single obsolete term may have more than one `replaced_by`
+    tag."
+    """
+    obo = tmp_path / "two_replacements.obo"
+    obo.write_text(
+        "format-version: 1.2\n\n"
+        "[Term]\nid: MOD:90001\nname: ambiguous\nis_obsolete: true\n"
+        "replaced_by: MOD:90002\nreplaced_by: MOD:90003\n\n"
+        "[Term]\nid: MOD:90002\nname: first\n\n"
+        "[Term]\nid: MOD:90003\nname: second\n",
+        encoding="utf-8",
+    )
+    db = parse_obo(obo)
+    assert db[90001].replaced_by == (90002, 90003)
+    resolved = db.resolve(90001)
+    assert resolved is not None
+    assert resolved.id == 90001, "no single replacement, so resolve stops on the obsolete term"
