@@ -1,7 +1,10 @@
 """Tests for PsiModDatabase lookup, search, and traversal."""
 
+from pathlib import Path
+
 import pytest
 
+from psimodpy import parse_obo, write_obo
 from psimodpy.models import AminoAcid, Crosslink, RelationshipType
 
 
@@ -296,3 +299,42 @@ def test_resolve_redirect_to_missing_id_returns_last_existing_term(db):
 
     a = dataclasses.replace(db.get_by_id(1), id=90001, is_obsolete=True, xref_remap=99999)
     assert PsiModDatabase([a]).resolve(90001) is a
+
+
+def test_resolve_follows_a_real_upstream_replaced_by_tag() -> None:
+    r"""OUTSIDE-SOURCED: the expected ids come from the upstream CV file, not from our code.
+
+    ``tests/data/upstream_replaced_by.obo`` holds two stanzas copied verbatim from
+    <https://raw.githubusercontent.com/HUPO-PSI/psi-mod-CV/master/PSI-MOD.obo>, downloaded
+    2026-11-17. Upstream marks MOD:00306 obsolete with ``replaced_by: MOD:02119`` and no
+    ``xref: Remap``, so every value asserted here is upstream's: the pair 00306 -> 02119, the
+    replacement's own name, and the absence of a Remap xref.
+
+    The OBO 1.4 guide, ``replaced_by``: "Gives a term which replaces an obsolete term", whose
+    value "can safely be used to automatically reassign instances".
+    """
+    path = Path(__file__).parent / "data" / "upstream_replaced_by.obo"
+    db = parse_obo(path)
+
+    obsolete = db[306]
+    assert obsolete.is_obsolete
+    assert obsolete.xref_remap is None, "upstream uses replaced_by here, not xref: Remap"
+    assert obsolete.replaced_by == (2119,)
+
+    resolved = db.resolve(306)
+    assert resolved is not None
+    assert resolved.id == 2119
+    assert resolved.name == "L-leucine isomer"  # upstream's name for MOD:02119
+    assert not resolved.is_obsolete
+
+
+def test_write_obo_keeps_a_real_upstream_replaced_by_tag(tmp_path: Path) -> None:
+    """OUTSIDE-SOURCED: the line asserted is the one upstream writes, byte for byte."""
+    path = Path(__file__).parent / "data" / "upstream_replaced_by.obo"
+    upstream_line = "replaced_by: MOD:02119"
+    assert upstream_line in path.read_text(encoding="utf-8")
+
+    out = tmp_path / "round_trip.obo"
+    write_obo(parse_obo(path), out)
+    assert upstream_line in out.read_text(encoding="utf-8")
+    assert parse_obo(out)[306].replaced_by == (2119,)

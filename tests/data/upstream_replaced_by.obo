@@ -1,0 +1,41 @@
+! Two stanzas copied verbatim from the upstream PSI-MOD controlled vocabulary.
+! Source: https://raw.githubusercontent.com/HUPO-PSI/psi-mod-CV/master/PSI-MOD.obo
+! Downloaded 2026-11-17. MOD:00306 is obsolete and carries replaced_by: MOD:02119,
+! the only replaced_by in that file; MOD:02119 is its live replacement.
+format-version: 1.2
+ontology: mod
+
+[Term]
+id: MOD:00306
+name: residues isobaric at 113.084064 Da
+def: "Natural or modified residues with a mass of 113.084064 Da." [PubMed:10523135, RESID:AA0301]
+subset: PSI-MOD-slim
+synonym: "L-isoleucine or L-leucine" EXACT RESID-name []
+synonym: "Xle" EXACT PSI-MOD-label []
+xref: DiffAvg: "0.00"
+xref: DiffFormula: ""
+xref: DiffMono: "0.000000"
+xref: Formula: "C 6 H 11 N 1 O 1"
+xref: MassAvg: "113.16"
+xref: MassMono: "113.084064"
+xref: Origin: "X"
+xref: Source: "none"
+xref: TermSpec: "none"
+is_obsolete: true
+replaced_by: MOD:02119
+
+[Term]
+id: MOD:02119
+name: L-leucine isomer
+def: "An L-isoleucine or L-leucine amino acid." [PubMed:10523135, RESID:AA0301, https://www.insdc.org/submitting-standards/feature-table/#7.4.3]
+subset: PSI-MOD-slim
+xref: DiffAvg: "0.00"
+xref: DiffFormula: ""
+xref: DiffMono: "0.000000"
+xref: Formula: "C 6 H 11 N 1 O 1"
+xref: MassAvg: "113.16"
+xref: MassMono: "113.084064"
+xref: Origin: "J"
+xref: Source: "none"
+xref: TermSpec: "none"
+is_a: MOD:02118 ! protein modification categorized by isomeric sets

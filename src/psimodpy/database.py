@@ -17,6 +17,21 @@ from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, RelationshipType,
 _SEP = "\x00"
 
 
+def _replacement_id(entry: PsiModEntry) -> int | None:
+    """Return the single id that replaces an obsolete ``entry``, or None if there is not one.
+
+    ``xref: Remap`` is PSI-MOD's own tag and wins when present; ``replaced_by`` is the OBO
+    tag for the same thing, and upstream uses one or the other, never both (measured on
+    PSI-MOD.obo and PSI-MOD-newstyle.obo, 2026-11-17). Several ``replaced_by`` tags, which
+    the guide permits, name no single replacement, so None is returned.
+    """
+    if entry.xref_remap is not None:
+        return entry.xref_remap
+    if len(entry.replaced_by) == 1:
+        return entry.replaced_by[0]
+    return None
+
+
 class PsiModDatabase:
     """In-memory database of PSI-MOD entries with multiple lookup strategies.
 
@@ -95,6 +110,13 @@ class PsiModDatabase:
         in the database (or is malformed); never raises. A live term resolves to itself,
         and ``MOD:00407`` resolves to ``MOD:00599``.
 
+        The replacement is read from PSI-MOD's ``xref: Remap`` or, when that is absent, from
+        the OBO ``replaced_by`` tag, of which the OBO 1.4 guide says the value "can safely be
+        used to automatically reassign instances". A term carrying several ``replaced_by``
+        tags has no single replacement, so the walk stops there and the caller reads
+        :attr:`~psimodpy.models.PsiModEntry.replaced_by` itself. The ``consider`` tag is not
+        followed: the guide makes it a suggestion for a human expert to review.
+
         The walk stops on the last term it can reach, so it always terminates. That term is
         obsolete when the chain has no live end, in the three cases below, so check
         ``result.is_obsolete`` to tell a dead end from a live replacement:
@@ -109,8 +131,11 @@ class PsiModDatabase:
         if entry is None:
             return None
         seen = {entry.id}
-        while entry.is_obsolete and entry.xref_remap is not None and entry.xref_remap not in seen:
-            nxt = self._by_id.get(entry.xref_remap)
+        while entry.is_obsolete:
+            target = _replacement_id(entry)
+            if target is None or target in seen:
+                break
+            nxt = self._by_id.get(target)
             if nxt is None:
                 break
             seen.add(nxt.id)
