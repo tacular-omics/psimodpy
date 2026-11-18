@@ -353,6 +353,8 @@ def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues
                         unimod_xrefs.append(xref_val)
             else:
                 issues.line("xref:", lineno, line)
+        else:
+            issues.line(f"{line.split(':', 1)[0]}:", lineno, line)
 
     if entry_id is None or name is None:
         first = block[0][0] if block else 0
@@ -431,9 +433,12 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
     Recoverable problems are reported with ``warnings.warn`` and do not abort the
     load: a [Term] without an id or name is skipped; an unknown synonym type,
     relationship type, TermSpec or Source is kept as a plain string; and a line
-    whose syntax is not recognised is dropped. A ``def:``, ``synonym:`` or ``xref:``
-    line whose quoted value holds an unescaped quote is one of those: it is reported
-    and dropped rather than silently truncated at the quote.
+    whose syntax is not recognised, or whose tag no rule handles, is dropped. A
+    ``def:``, ``synonym:`` or ``xref:`` line whose quoted value holds an unescaped
+    quote is one of those: it is reported and dropped rather than silently truncated
+    at the quote. An unhandled tag, such as ``replaced_by:`` or ``consider:``, is
+    reported the same way, one warning per tag, so an upstream move to those
+    replacement pointers is visible instead of deleting every redirect silently.
 
     OBO 1.2 escapes are decoded in every value except ``definition_ref``, which keeps
     the escapes that carry citation-list syntax (``\\,`` ``\\"`` ``\\{`` ``\\}``
