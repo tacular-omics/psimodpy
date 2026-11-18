@@ -35,6 +35,7 @@ _XREF_RE = re.compile(rf'^xref:\s+([^:]+):\s+"((?:[^"\\]|\\.)*)"{_OBO_TRAILING}'
 
 _OBO_UNESCAPE = {
     "n": "\n",
+    "r": "\r",
     "W": " ",
     "t": "\t",
     ":": ":",
@@ -51,7 +52,14 @@ _OBO_UNESCAPE = {
 
 
 def _unescape_obo(text: str) -> str:
-    """Decode OBO 1.2 backslash escape sequences in a single pass."""
+    r"""Decode OBO backslash escape sequences in a single pass.
+
+    ``\r`` is in the table although neither the 1.2 nor the 1.4 escape table lists it: the
+    1.4 grammar accepts a backslash before any letter, a carriage return cannot appear
+    literally in a value (``NewlineChar``), and fastobo, the strict 1.4 implementation,
+    writes it as ``\r``. Without it a value holding a carriage return loses everything
+    after it, because the file is read in text mode and the bare byte ends the line.
+    """
     if "\\" not in text:
         return text
     out: list[str] = []

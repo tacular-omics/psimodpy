@@ -95,6 +95,97 @@ _ALL_ESCAPES = [
 _DBXREF_STRUCTURAL = {"\\,", '\\"', "\\\\", "\\{", "\\}"}
 
 
+def test_parse_obo_decodes_an_escaped_carriage_return(tmp_path: Path) -> None:
+    r"""``\r`` decodes to a carriage return, so a value holding one survives a file.
+
+    Neither escape table lists it. The 1.4 grammar accepts a backslash before any letter, a
+    carriage return cannot appear literally in a value, and fastobo writes it as ``\r``.
+    """
+    obo = tmp_path / "cr.obo"
+    obo.write_text(
+        "format-version: 1.2\n\n[Term]\nid: MOD:90901\nname: a\\rb\ncomment: c\\rd\n"
+        'def: "e\\rf" [DB:g\\rh]\nsynonym: "i\\rj" EXACT PSI-MOD-label []\n',
+        encoding="utf-8",
+    )
+    entry = parse_obo(obo)[90901]
+    assert entry.name == "a\rb"
+    assert entry.comment == "c\rd"
+    assert entry.definition == "e\rf"
+    assert entry.definition_ref == "DB:g\rh"
+    assert [s.value for s in entry.synonyms] == ["i\rj"]
+
+
+def test_round_trip_carriage_return_in_every_free_text_field(db: PsiModDatabase, tmp_path: Path) -> None:
+    r"""A carriage return round-trips as ``\r`` and never reaches the file as a bare byte.
+
+    A bare carriage return ends the line: the file is read in text mode, where universal
+    newlines turn it into a line break, so before this the value was truncated at it in
+    silence (``"a\rb"`` came back as ``"a"``) or the whole clause was dropped with a warning.
+    """
+    entry = dataclasses.replace(
+        db["MOD:00046"],
+        id=90902,
+        name="a\rb",
+        definition="c\rd",
+        definition_ref="DB:e\rf",
+        comment="g\rh",
+        synonyms=(Synonym(value="i\rj", type=SynonymType.PSI_MOD_LABEL, scope="EXACT"),),
+    )
+    out = tmp_path / "cr_round_trip.obo"
+    write_obo([entry], out)
+
+    raw = out.read_bytes()
+    assert b"\r" not in raw, "a carriage return reached the file as a bare byte"
+    assert raw.count(b"\\r") == 5
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        back = parse_obo(out)[90902]
+    assert back.name == entry.name
+    assert back.definition == entry.definition
+    assert back.definition_ref == entry.definition_ref
+    assert back.comment == entry.comment
+    assert [s.value for s in back.synonyms] == ["i\rj"]
+
+    again = tmp_path / "cr_again.obo"
+    write_obo([back], again)
+    assert again.read_bytes() == raw
+
+
+def test_round_trip_literal_backslash_r_stays_literal(db: PsiModDatabase, tmp_path: Path) -> None:
+    r"""A stored backslash followed by ``r`` is written ``\\r``, so it never reads back as a return.
+
+    The free-text fields hold the decoded value and come back identical. ``definition_ref``
+    holds the escaped form, so a lone backslash in it is re-encoded once, exactly as a lone
+    brace is (``DB:a}b`` becomes ``DB:a\}b``), and is then unchanged by every later round trip.
+    """
+    entry = dataclasses.replace(
+        db["MOD:00046"],
+        id=90903,
+        name="a\\rb",
+        definition="c\\rd",
+        definition_ref="DB:e\\rf",
+        comment="g\\rh",
+        synonyms=(),
+    )
+    out = tmp_path / "literal_backslash_r.obo"
+    write_obo([entry], out)
+    text = out.read_text(encoding="utf-8")
+    assert "name: a\\\\rb" in text
+    assert "comment: g\\\\rh" in text
+    assert "[DB:e\\\\rf]" in text
+    back = parse_obo(out)[90903]
+    assert back.name == entry.name
+    assert back.definition == entry.definition
+    assert back.comment == entry.comment
+    assert "\r" not in back.name + back.definition + back.comment, "a literal backslash became a return"
+    assert back.definition_ref == "DB:e\\\\rf"
+
+    again = tmp_path / "literal_backslash_r_again.obo"
+    write_obo([back], again)
+    assert again.read_bytes() == out.read_bytes()
+
+
 @pytest.mark.parametrize(("escaped", "decoded"), _ALL_ESCAPES)
 def test_parse_obo_decodes_all_obo_1_2_escapes(tmp_path: Path, escaped: str, decoded: str) -> None:
     obo = tmp_path / "escapes.obo"

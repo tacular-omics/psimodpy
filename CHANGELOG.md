@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- A carriage return in a name, definition, synonym, comment or `definition_ref` is now written
+  as `\r` and decoded back, instead of reaching the file as a bare byte. The file is read in
+  text mode, where a bare return ends the line, so such a value used to come back truncated at
+  it in silence (`"a\rb"` read back as `"a"`), or the whole `def:` line was dropped with a
+  warning. Neither the OBO 1.2 nor the 1.4 escape table lists `\r`; the escape is the one the
+  format leaves room for and the ecosystem uses: the 1.4 grammar accepts a backslash before
+  any letter, a return cannot appear literally in a value (it is a `NewlineChar`), and
+  fastobo, the strict 1.4 implementation, writes it as `\r` and decodes it in both quoted and
+  unquoted text.
+
+### Changed
+
+- Disclosing a 1.3.0 change that went unmentioned: in a file written by psimodpy 1.2.0 or
+  earlier, a literal backslash in free text is now read as the start of an escape, so
+  `comment: C:\new` reads back as `C:`, a newline, then `ew`, where 1.2.0 read the six
+  characters `C:\new`. This is what the format requires - the 1.4 grammar makes a backslash an
+  escape introducer everywhere, and both escape tables define `\n` as a newline, so a literal
+  backslash has to be written `\\`. 1.2.0 wrote it unescaped, which is why only its files are
+  affected; 1.3.0 and later write `\\`, so re-writing such a file with this version gives the
+  escaped, re-readable form. No file in the PSI-MOD ontology itself is affected.
+
 ## [1.3.0] (2026-11-16)
 
 ### Added
