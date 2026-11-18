@@ -127,16 +127,18 @@ def test_round_trip_carriage_return_in_every_free_text_field(db: PsiModDatabase,
         id=90902,
         name="a\rb",
         definition="c\rd",
-        definition_ref="DB:e\rf",
+        definition_ref='DB:e\rf "desc\rx" {source="mod\ry"}',
         comment="g\rh",
         synonyms=(Synonym(value="i\rj", type=SynonymType.PSI_MOD_LABEL, scope="EXACT"),),
     )
     out = tmp_path / "cr_round_trip.obo"
     write_obo([entry], out)
 
-    raw = out.read_bytes()
-    assert b"\r" not in raw, "a carriage return reached the file as a bare byte"
-    assert raw.count(b"\\r") == 5
+    # Windows writes CRLF line endings, which the 1.4 grammar allows (NewlineChar ::= "\r\n" |
+    # "\n"), so the line endings are normalised away before looking for a return in a value.
+    body = out.read_bytes().replace(b"\r\n", b"\n")
+    assert b"\r" not in body, "a carriage return reached the file as a bare byte"
+    assert body.count(b"\\r") == 7, "one per return: name, def, definition_ref x3, comment, synonym"
 
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -149,7 +151,7 @@ def test_round_trip_carriage_return_in_every_free_text_field(db: PsiModDatabase,
 
     again = tmp_path / "cr_again.obo"
     write_obo([back], again)
-    assert again.read_bytes() == raw
+    assert again.read_bytes() == out.read_bytes()
 
 
 def test_round_trip_literal_backslash_r_stays_literal(db: PsiModDatabase, tmp_path: Path) -> None:
