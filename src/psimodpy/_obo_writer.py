@@ -58,6 +58,7 @@ def _escape_boundary_spaces(text: str) -> str:
 def _escape_free_text(text: str) -> str:
     escaped = (
         text.replace("\\", "\\\\")
+        .replace("\r", "\\r")
         .replace("\n", "\\n")
         .replace("\t", "\\t")
         .replace('"', '\\"')
@@ -68,7 +69,7 @@ def _escape_free_text(text: str) -> str:
 
 
 def _escape_quoted(text: str) -> str:
-    return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")
+    return text.replace("\\", "\\\\").replace('"', '\\"').replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
 
 
 _DBXREF_ID_STRUCTURAL = frozenset({"\\", ",", '"', "{", "}", "W", "t"})
@@ -88,6 +89,8 @@ def _escape_dbxref_id(text: str) -> str:
                 i += 2
                 continue
             out.append("\\\\")
+        elif ch == "\r":
+            out.append("\\r")
         elif ch == "\n":
             out.append("\\n")
         elif ch == "[":
@@ -118,6 +121,8 @@ def _escape_dbxref_quoted(inner: str) -> str:
                 i += 2
                 continue
             out.append("\\\\")
+        elif ch == "\r":
+            out.append("\\r")
         elif ch == "\n":
             out.append("\\n")
         elif ch == "\t":
@@ -144,6 +149,8 @@ def _escape_dbxref_mod(inner: str) -> str:
                 i += 2
                 continue
             out.append("\\\\")
+        elif ch == "\r":
+            out.append("\\r")
         elif ch == "\n":
             out.append("\\n")
         elif ch == "\t":

@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- A carriage return in a name, definition, synonym, comment or `definition_ref` is now written
+  as `\r` and decoded back, instead of reaching the file as a bare byte. The file is read in
+  text mode, where a bare return ends the line, so such a value used to come back truncated at
+  it in silence (`"a\rb"` read back as `"a"`), or the whole `def:` line was dropped with a
+  warning. **This is a decision, not what the format requires, and it is not settled: see the
+  PR.** Neither the 1.2 nor the 1.4 escape table lists `\r`, and the paragraph under both
+  tables says a parser "may support only these escape characters, or they may assume that any
+  character following a backslash is an escaped character", in which case it reads `\r` as the
+  letter `r`. Writing `\r` avoids silent truncation but a guide-conforming reader of the
+  second kind will read the value back with an `r` where the return was. **Who sees a
+  difference beyond that:** the reader now decodes `\r` in *any* file, so a value written
+  elsewhere as `C:\road` is read with a carriage return in it where 1.3.0 read a backslash and
+  an `r` - the same class of change as the `\n` one disclosed below, and the reason this is
+  held for a decision.
+
+### Changed
+
+- Disclosing a 1.3.0 change that went unmentioned: in a file written by psimodpy 1.2.0 or
+  earlier, a literal backslash in free text is now read as the start of an escape, so
+  `comment: C:\new` reads back as `C:`, a newline, then `ew`, where 1.2.0 read the six
+  characters `C:\new`. This is what the format requires - the 1.4 grammar makes a backslash an
+  escape introducer everywhere, and both escape tables define `\n` as a newline, so a literal
+  backslash has to be written `\\`. 1.2.0 wrote it unescaped, which is why only its files are
+  affected; 1.3.0 and later write `\\`, so re-writing such a file with this version gives the
+  escaped, re-readable form. No file in the PSI-MOD ontology itself is affected.
+
 ## [1.3.0] (2026-11-16)
 
 ### Added
