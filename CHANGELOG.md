@@ -8,11 +8,16 @@
   as `\r` and decoded back, instead of reaching the file as a bare byte. The file is read in
   text mode, where a bare return ends the line, so such a value used to come back truncated at
   it in silence (`"a\rb"` read back as `"a"`), or the whole `def:` line was dropped with a
-  warning. Neither the OBO 1.2 nor the 1.4 escape table lists `\r`; the escape is the one the
-  format leaves room for and the ecosystem uses: the 1.4 grammar accepts a backslash before
-  any letter, a return cannot appear literally in a value (it is a `NewlineChar`), and
-  fastobo, the strict 1.4 implementation, writes it as `\r` and decodes it in both quoted and
-  unquoted text.
+  warning. **This is a decision, not what the format requires, and it is not settled: see the
+  PR.** Neither the 1.2 nor the 1.4 escape table lists `\r`, and the paragraph under both
+  tables says a parser "may support only these escape characters, or they may assume that any
+  character following a backslash is an escaped character", in which case it reads `\r` as the
+  letter `r`. Writing `\r` avoids silent truncation but a guide-conforming reader of the
+  second kind will read the value back with an `r` where the return was. **Who sees a
+  difference beyond that:** the reader now decodes `\r` in *any* file, so a value written
+  elsewhere as `C:\road` is read with a carriage return in it where 1.3.0 read a backslash and
+  an `r` - the same class of change as the `\n` one disclosed below, and the reason this is
+  held for a decision.
 
 ### Changed
 
