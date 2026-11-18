@@ -316,14 +316,16 @@ def test_resolve_follows_a_real_upstream_replaced_by_tag() -> None:
     path = Path(__file__).parent / "data" / "upstream_replaced_by.obo"
     db = parse_obo(path)
 
+    # The behaviour first, so this fails on an id and not on a missing attribute: before the
+    # fix resolve(306) returned MOD:00306 itself.
+    resolved = db.resolve(306)
+    assert resolved is not None
+    assert resolved.id == 2119, "upstream says MOD:00306 is replaced by MOD:02119"
+
     obsolete = db[306]
     assert obsolete.is_obsolete
     assert obsolete.xref_remap is None, "upstream uses replaced_by here, not xref: Remap"
     assert obsolete.replaced_by == (2119,)
-
-    resolved = db.resolve(306)
-    assert resolved is not None
-    assert resolved.id == 2119
     assert resolved.name == "L-leucine isomer"  # upstream's name for MOD:02119
     assert not resolved.is_obsolete
 
@@ -359,7 +361,38 @@ def test_resolve_stops_at_a_term_with_several_replaced_by_tags(tmp_path: Path) -
         encoding="utf-8",
     )
     db = parse_obo(obo)
-    assert db[90001].replaced_by == (90002, 90003)
+    # Behaviour first, so the failure is an id and not a missing attribute.
     resolved = db.resolve(90001)
     assert resolved is not None
     assert resolved.id == 90001, "no single replacement, so resolve stops on the obsolete term"
+    assert db[90001].replaced_by == (90002, 90003)
+
+
+def test_resolve_needs_the_two_replacement_tags_to_agree(tmp_path: Path) -> None:
+    """Neither `replaced_by` nor `xref: Remap` is preferred, so disagreement stops the walk.
+
+    Not outside-sourced: no upstream stanza carries both tags (measured 2026-11-17 on
+    PSI-MOD.obo and PSI-MOD-newstyle.obo at master, v1.41.0 and v1.40.0), so both inputs are
+    constructed. Nothing outside this package ranks the two tags, which is why agreement, and
+    not a preference for either, is what lets `resolve` continue.
+    """
+
+    def build(name: str, remap: str, replaced: str) -> object:
+        obo = tmp_path / name
+        obo.write_text(
+            "format-version: 1.2\n\n"
+            f"[Term]\nid: MOD:90001\nname: both\nis_obsolete: true\n{remap}{replaced}\n"
+            "[Term]\nid: MOD:90002\nname: first\n\n"
+            "[Term]\nid: MOD:90003\nname: second\n",
+            encoding="utf-8",
+        )
+        return parse_obo(obo)
+
+    # Behaviour first in both cases, so a failure is an id and not a missing attribute.
+    disagree = build("disagree.obo", 'xref: Remap: "MOD:90002"\n', "replaced_by: MOD:90003\n")
+    assert disagree.resolve(90001).id == 90001, "two tags, two targets: resolve stops"
+
+    agree = build("agree.obo", 'xref: Remap: "MOD:90002"\n', "replaced_by: MOD:90002\n")
+    assert agree.resolve(90001).id == 90002, "one id between them: the walk continues"
+    assert agree[90001].replaced_by == (90002,)
+    assert agree[90001].xref_remap == 90002
