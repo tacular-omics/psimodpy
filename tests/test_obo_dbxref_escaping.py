@@ -315,11 +315,45 @@ def test_smiles_xref_is_read_and_written_from_a_real_upstream_file(tmp_path: Pat
         assert f'xref: Smiles: "{smiles}"' in fixture_text
 
     db = parse_obo(path)
-    assert {mod_id: db[mod_id].xref_smiles for mod_id in expected} == expected
 
+    # The behaviour first, so this fails on a missing line and not on a missing attribute:
+    # before the fix, writing these stanzas back out dropped all 133 upstream Smiles lines.
     out = tmp_path / "round_trip.obo"
     write_obo(db, out)
     text = out.read_text(encoding="utf-8")
     for smiles in expected.values():
-        assert f'xref: Smiles: "{smiles}"' in text
+        assert f'xref: Smiles: "{smiles}"' in text, "upstream's line must survive a round trip"
+
+    assert {mod_id: db[mod_id].xref_smiles for mod_id in expected} == expected
     assert {mod_id: parse_obo(out)[mod_id].xref_smiles for mod_id in expected} == expected
+
+
+def test_a_backslash_in_a_smiles_value_is_an_obo_escape_not_a_bond(tmp_path: Path) -> None:
+    r"""Pins a hazard rather than working around it: OpenSMILES uses ``\`` as a bond symbol.
+
+    Not outside-sourced in its input: no upstream ``Smiles`` value contains a backslash
+    (checked in PSI-MOD.obo and PSI-MOD-newstyle.obo at master, v1.41.0 and v1.40.0, 133
+    values each), so this file is constructed. The expected result comes from the format, not
+    from us: the OBO 1.2 escape table makes ``\n`` a newline, so an unescaped bond backslash
+    before an ``n`` is read as one, and a literal backslash has to be written ``\\``. The test
+    exists so the hazard is visible and pinned rather than discovered later.
+    """
+    unescaped = tmp_path / "smiles_backslash.obo"
+    unescaped.write_text(
+        'format-version: 1.2\n\n[Term]\nid: MOD:90001\nname: n\nxref: Smiles: "C/C=C\\n1cccc1"\n',
+        encoding="utf-8",
+    )
+    assert parse_obo(unescaped)[90001].xref_smiles == "C/C=C\n1cccc1"
+
+    escaped = tmp_path / "smiles_escaped.obo"
+    escaped.write_text(
+        'format-version: 1.2\n\n[Term]\nid: MOD:90001\nname: n\nxref: Smiles: "C/C=C\\\\n1cccc1"\n',
+        encoding="utf-8",
+    )
+    entry = parse_obo(escaped)[90001]
+    assert entry.xref_smiles == "C/C=C\\n1cccc1", "the escaped form keeps the bond backslash"
+
+    out = tmp_path / "written.obo"
+    write_obo([entry], out)
+    assert 'xref: Smiles: "C/C=C\\\\n1cccc1"' in out.read_text(encoding="utf-8")
+    assert parse_obo(out)[90001].xref_smiles == entry.xref_smiles

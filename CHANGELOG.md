@@ -13,7 +13,11 @@
   line used to disappear. The bundled snapshot carries none, so `load()` with no argument is
   unchanged. The key is matched as the CV's README and its released files spell it, `Smiles`;
   the 2025-04-03 annotation-rules PDF writes `xref: smiles:` in lower case, and no lower-case
-  spelling occurs in any released file, so no second spelling is accepted.
+  spelling occurs in any released file, so no second spelling is accepted. One hazard comes
+  with the field and is not worked around: OpenSMILES uses a backslash as a bond symbol, and a
+  backslash in an OBO value is an escape introducer, so an unescaped `C/C=C\n1cccc1` reads
+  back with a newline in it. No upstream value contains a backslash today; a file that writes
+  one has to escape it as `\\`, which psimodpy reads and writes correctly.
 
 ## [1.3.0] (2026-11-16)
 
