@@ -17,6 +17,20 @@
   that uses `replaced_by`, which today means upstream's own `PSI-MOD.obo` (one term, MOD:00306
   to MOD:02119) and `PSI-MOD-newstyle.obo` (67 terms). The bundled ontology has none, so
   `load()` with no argument is unchanged.
+- `PsiModEntry.xref_smiles` holds the `xref: Smiles` value, an OpenSMILES string for the whole
+  modified residue, which was read as nothing and dropped by `write_obo`. The CV's own field
+  table defines the key as "An OpenSMILES string encoding the full modified residue (residue +
+  modification(s)) with `*` to indicate the backbone bonds", and it is the only key in that
+  table psimodpy did not model. **Who sees a difference:** anyone loading upstream's
+  `PSI-MOD.obo`, which carries 133 of these lines, or writing such a file back out, where the
+  line used to disappear. The bundled snapshot carries none, so `load()` with no argument is
+  unchanged. The key is matched as the CV's README and its released files spell it, `Smiles`;
+  the 2025-04-03 annotation-rules PDF writes `xref: smiles:` in lower case, and no lower-case
+  spelling occurs in any released file, so no second spelling is accepted. One hazard comes
+  with the field and is not worked around: OpenSMILES uses a backslash as a bond symbol, and a
+  backslash in an OBO value is an escape introducer, so an unescaped `C/C=C\n1cccc1` reads
+  back with a newline in it. No upstream value contains a backslash today; a file that writes
+  one has to escape it as `\\`, which psimodpy reads and writes correctly.
 
 ## [1.3.0] (2026-11-16)
 

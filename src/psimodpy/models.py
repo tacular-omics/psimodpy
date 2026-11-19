@@ -201,6 +201,14 @@ class PsiModEntry:
     and upstream carries exactly one ``replaced_by`` today (MOD:00306 to MOD:02119).
     """
 
+    xref_smiles: str | None = None
+    """The ``xref: Smiles`` value: an OpenSMILES string for the whole modified residue.
+
+    The CV's own field table calls it "An OpenSMILES string encoding the full modified residue
+    (residue + modification(s)) with ``*`` to indicate the backbone bonds", e.g.
+    ``'C[C@H](N-*)C(-*)=O'`` for MOD:00010. None when the term has no such xref.
+    """
+
     def __post_init__(self) -> None:
         if not self.xrefs_unimod and self.xref_unimod is not None:
             object.__setattr__(self, "xrefs_unimod", (self.xref_unimod,))

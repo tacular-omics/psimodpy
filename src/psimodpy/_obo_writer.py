@@ -383,6 +383,8 @@ def _write_entry(fh, entry: PsiModEntry, names: dict[int, str]) -> None:
         fh.write(_xref("Origin", _fmt_origin(entry.origin)))
     if entry.term_spec is not None:
         fh.write(_xref("TermSpec", str(entry.term_spec)))
+    if entry.xref_smiles is not None:
+        fh.write(_xref("Smiles", entry.xref_smiles))
     if entry.source is not None:
         fh.write(_xref("Source", str(entry.source)))
     if entry.formal_charge is not None:

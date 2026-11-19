@@ -287,3 +287,73 @@ def test_whitespace_only_and_empty_free_text_round_trip(db: PsiModDatabase, tmp_
     empty, warned = _write_read(db, tmp_path, "empty", comment="")
     assert empty.comment == ""
     assert warned == 0
+
+
+def test_smiles_xref_is_read_and_written_from_a_real_upstream_file(tmp_path: Path) -> None:
+    r"""OUTSIDE-SOURCED: both SMILES strings are upstream's, copied from its own file.
+
+    ``tests/data/upstream_smiles.obo`` holds two stanzas copied verbatim from
+    <https://raw.githubusercontent.com/HUPO-PSI/psi-mod-CV/master/PSI-MOD.obo>, downloaded
+    2026-11-17; that file carries 133 ``xref: Smiles:`` lines.
+
+    The CV's own field table defines the key: "| Smiles | string | An OpenSMILES string
+    encoding the full modified residue (residue + modification(s)) with `*` to indicate the
+    backbone bonds. | `C(*)(=O)[C@H](COP(O)(=O)O)N*` |"
+    (<https://github.com/HUPO-PSI/psi-mod-CV>, README.md, "Optional keys").
+    """
+    path = Path(__file__).parent / "data" / "upstream_smiles.obo"
+    # The two values exactly as the upstream file spells them.
+    expected = {
+        10: "C[C@H](N-*)C(-*)=O",
+        311: (
+            "*N[C@@H](CSSCCNC(=O)CCNC(=O)[C@H](O)C(C)(C)COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H]"
+            "(n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)(O)O)C(*)=O"
+        ),
+    }
+    fixture_text = path.read_text(encoding="utf-8")
+    for smiles in expected.values():
+        assert f'xref: Smiles: "{smiles}"' in fixture_text
+
+    db = parse_obo(path)
+
+    # The behaviour first, so this fails on a missing line and not on a missing attribute:
+    # before the fix, writing these stanzas back out dropped all 133 upstream Smiles lines.
+    out = tmp_path / "round_trip.obo"
+    write_obo(db, out)
+    text = out.read_text(encoding="utf-8")
+    for smiles in expected.values():
+        assert f'xref: Smiles: "{smiles}"' in text, "upstream's line must survive a round trip"
+
+    assert {mod_id: db[mod_id].xref_smiles for mod_id in expected} == expected
+    assert {mod_id: parse_obo(out)[mod_id].xref_smiles for mod_id in expected} == expected
+
+
+def test_a_backslash_in_a_smiles_value_is_an_obo_escape_not_a_bond(tmp_path: Path) -> None:
+    r"""Pins a hazard rather than working around it: OpenSMILES uses ``\`` as a bond symbol.
+
+    Not outside-sourced in its input: no upstream ``Smiles`` value contains a backslash
+    (checked in PSI-MOD.obo and PSI-MOD-newstyle.obo at master, v1.41.0 and v1.40.0, 133
+    values each), so this file is constructed. The expected result comes from the format, not
+    from us: the OBO 1.2 escape table makes ``\n`` a newline, so an unescaped bond backslash
+    before an ``n`` is read as one, and a literal backslash has to be written ``\\``. The test
+    exists so the hazard is visible and pinned rather than discovered later.
+    """
+    unescaped = tmp_path / "smiles_backslash.obo"
+    unescaped.write_text(
+        'format-version: 1.2\n\n[Term]\nid: MOD:90001\nname: n\nxref: Smiles: "C/C=C\\n1cccc1"\n',
+        encoding="utf-8",
+    )
+    assert parse_obo(unescaped)[90001].xref_smiles == "C/C=C\n1cccc1"
+
+    escaped = tmp_path / "smiles_escaped.obo"
+    escaped.write_text(
+        'format-version: 1.2\n\n[Term]\nid: MOD:90001\nname: n\nxref: Smiles: "C/C=C\\\\n1cccc1"\n',
+        encoding="utf-8",
+    )
+    entry = parse_obo(escaped)[90001]
+    assert entry.xref_smiles == "C/C=C\\n1cccc1", "the escaped form keeps the bond backslash"
+
+    out = tmp_path / "written.obo"
+    write_obo([entry], out)
+    assert 'xref: Smiles: "C/C=C\\\\n1cccc1"' in out.read_text(encoding="utf-8")
+    assert parse_obo(out)[90001].xref_smiles == entry.xref_smiles

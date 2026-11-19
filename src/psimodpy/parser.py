@@ -411,6 +411,7 @@ def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues
         xref_unimod=raw("Unimod"),
         xref_uniprot_ptm=raw("uniprot.ptm") or xref_uniprot_ptm,
         xref_gnome=raw("GNOme"),
+        xref_smiles=raw("Smiles"),
         xref_remap=_convert(_parse_mod_id, xrefs["Remap"][0], "Remap", where("Remap")) if "Remap" in xrefs else None,
         in_slim_subset=in_slim_subset,
         is_obsolete=is_obsolete,
