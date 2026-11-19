@@ -31,6 +31,13 @@
   backslash in an OBO value is an escape introducer, so an unescaped `C/C=C\n1cccc1` reads
   back with a newline in it. No upstream value contains a backslash today; a file that writes
   one has to escape it as `\\`, which psimodpy reads and writes correctly.
+- `PsiModDatabase.get_ancestors(entry)`, `get_descendants(entry)` and `is_descendant_of(entry,
+  ancestor)` follow `is_a` transitively. They take an entry or any id `get_by_id` takes and
+  return each term once, breadth-first (direct parents or children first, in `get_parents` /
+  `get_children` order), using a visited set so the 1194 terms with several parents are not
+  revisited and an `is_a` cycle ends. A term is not its own ancestor, descendant or
+  `is_descendant_of` itself; an unknown or malformed id gives `[]` / `False`. `get_parents`,
+  `get_children`, `search_mass` and the REST and MCP tools are unchanged. Thanks @ritanjay.
 
 ## [1.3.0] (2026-11-16)
 
