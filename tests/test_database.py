@@ -1,9 +1,11 @@
 """Tests for PsiModDatabase lookup, search, and traversal."""
 
+import re
 from pathlib import Path
 
 import pytest
 
+import psimodpy
 from psimodpy import parse_obo, write_obo
 from psimodpy.models import AminoAcid, Crosslink, RelationshipType
 
@@ -412,16 +414,78 @@ def _naive_ancestor_ids(db, entry):
     return out
 
 
+def _is_a_from_the_bundled_file() -> dict[int, list[int]]:
+    """Parse ``is_a`` out of the bundled OBO text, without going through psimodpy.
+
+    The shape assertions below compare the database's view of the hierarchy against the file
+    it was built from, rather than against numbers written down here. That way a PSI-MOD
+    refresh changes both sides at once (the bundled snapshot is 147 roots and 1194
+    multi-parent terms; upstream 1.41.0 is already 146 and 1196), while a parser that lost
+    or invented an ``is_a`` edge still fails.
+    """
+    text = (Path(psimodpy.__file__).parent / "data" / "PSI-MOD.obo").read_text(encoding="utf-8")
+    parents: dict[int, list[int]] = {}
+    for stanza in text.split("\n[Term]\n")[1:]:
+        match = re.search(r"^id: MOD:(\d+)$", stanza, re.M)
+        if match is not None:
+            parents[int(match.group(1))] = [int(x) for x in re.findall(r"^is_a: MOD:(\d+)", stanza, re.M)]
+    return parents
+
+
 def test_bundled_is_a_shape(db):
-    """The figures the transitive queries were sized against."""
-    roots = [e for e in db if not db.get_parents(e)]
-    assert len(roots) == 147
-    assert sum(1 for e in db if len(e.is_a) > 1) == 1194
+    """The shape the transitive queries were sized against, derived from the file itself."""
+    parents = _is_a_from_the_bundled_file()
+    assert len(parents) == len(db)
+
+    expected_roots = sum(1 for ps in parents.values() if not ps)
+    expected_multi = sum(1 for ps in parents.values() if len(ps) > 1)
+    assert expected_roots > 0 and expected_multi > 0, "a parse that found no edges must not pass"
+    assert sum(1 for e in db if not db.get_parents(e)) == expected_roots
+    assert sum(1 for e in db if len(e.is_a) > 1) == expected_multi
 
     def depth(e):
         return 1 + max((depth(p) for p in db.get_parents(e)), default=-1)
 
-    assert max(depth(e) for e in db) == 9
+    file_depth: dict[int, int] = {}
+
+    def raw_depth(term: int) -> int:
+        if term not in file_depth:
+            known = [p for p in parents.get(term, []) if p in parents]
+            file_depth[term] = 1 + max((raw_depth(p) for p in known), default=-1)
+        return file_depth[term]
+
+    assert max(raw_depth(t) for t in parents) >= 2, "a flat parse must not pass"
+    assert max(depth(e) for e in db) == max(raw_depth(t) for t in parents)
+
+
+def test_descendants_are_the_exact_inverse_of_ancestors(db):
+    """Every descendant list is exactly the set of terms that call that term an ancestor.
+
+    The contributor's tests check that direct children come first and that the root's
+    descendants each list the root, which a `get_descendants` returning only direct children
+    would also pass. This pins both directions for all terms at once.
+    """
+    descendants = {e.id: {d.id for d in db.get_descendants(e)} for e in db}
+    from_ancestors: dict[int, set[int]] = {e.id: set() for e in db}
+    for entry in db:
+        for ancestor in db.get_ancestors(entry):
+            from_ancestors[ancestor.id].add(entry.id)
+    assert descendants == from_ancestors
+
+    # Non-vacuity: some term must reach past its own children, or a one-level walk would pass.
+    deeper = [e for e in db if descendants[e.id] > {c.id for c in db.get_children(e)}]
+    assert deeper, "no term has an indirect descendant, so this would pass on a one-level walk"
+
+
+def test_ancestors_order_is_pinned_at_every_level_for_mod_00002(db):
+    """The full breadth-first order of one deep term, not just its first level.
+
+    The order was confirmed on 2026-11-18 by parsing the bundled file directly and walking it
+    with an independent queue, giving [396, 916, 693, 1157, 764, 0, 1156]; it is the one
+    assertion here that is tied to the snapshot, and a PSI-MOD refresh may change it.
+    """
+    assert [a.id for a in db.get_ancestors(2)] == [396, 916, 693, 1157, 764, 0, 1156]
+    assert [a.id for a in db.get_ancestors("MOD:00002")] == [396, 916, 693, 1157, 764, 0, 1156]
 
 
 def test_every_parent_is_an_ancestor_and_roots_have_none(db):
