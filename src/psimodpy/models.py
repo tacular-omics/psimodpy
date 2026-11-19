@@ -193,6 +193,14 @@ class PsiModEntry:
     for MOD:01506. Empty when there is none. Left empty on construction, it is filled from
     :attr:`xref_unimod`."""
 
+    replaced_by: tuple[int, ...] = ()
+    """Ids from OBO ``replaced_by`` tags: the terms that replace this obsolete one.
+
+    The OBO 1.4 guide gives this tag cardinality "any" and says a single obsolete term may
+    have more than one, so this is a tuple. PSI-MOD's own files use ``xref: Remap`` instead,
+    and upstream carries exactly one ``replaced_by`` today (MOD:00306 to MOD:02119).
+    """
+
     xref_smiles: str | None = None
     """The ``xref: Smiles`` value: an OpenSMILES string for the whole modified residue.
 

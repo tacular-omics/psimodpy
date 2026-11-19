@@ -30,6 +30,7 @@ _OBO_TRAILING = r'(?:\s*\{(?:[^}"\\]|\\.|"(?:[^"\\]|\\.)*")*\})?(?:\s*!.*)?\s*$'
 _DEF_RE = re.compile(rf'^def:\s+"((?:[^"\\]|\\.)*)"\s+\[((?:[^\]"\\]|\\.|"(?:[^"\\]|\\.)*")*)\]{_OBO_TRAILING}')
 _SYNONYM_RE = re.compile(rf'^synonym:\s+"((?:[^"\\]|\\.)*)"\s+(\w+)\s+(\S+)\s+\[\]{_OBO_TRAILING}')
 _IS_A_RE = re.compile(r"^is_a:\s+MOD:(\d+)")
+_REPLACED_BY_RE = re.compile(r"^replaced_by:\s+MOD:(\d+)\s*(?:!.*)?$")
 _RELATIONSHIP_RE = re.compile(r"^relationship:\s+(\S+)\s+MOD:(\d+)")
 _XREF_RE = re.compile(rf'^xref:\s+([^:]+):\s+"((?:[^"\\]|\\.)*)"{_OBO_TRAILING}')
 
@@ -293,6 +294,7 @@ def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues
     xrefs: dict[str, tuple[str, int]] = {}
     unimod_xrefs: list[str] = []
     xref_uniprot_ptm: str | None = None
+    replaced_by: list[int] = []
 
     for lineno, line in block:
         if line.startswith("id: "):
@@ -335,6 +337,12 @@ def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues
             comment = _unescape_obo(line[9:])
         elif line == "is_obsolete: true":
             is_obsolete = True
+        elif line.startswith("replaced_by: "):
+            m = _REPLACED_BY_RE.match(line)
+            if m:
+                replaced_by.append(int(m.group(1)))
+            else:
+                issues.line("replaced_by:", lineno, line)
         elif line.startswith("xref: "):
             # Pre-1.039 uniprot.ptm form, unquoted with no space: "xref: uniprot.ptm:PTM-0369"
             m = _XREF_UNIPROT_RE.match(line)
@@ -409,6 +417,7 @@ def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues
         is_obsolete=is_obsolete,
         definition_ref=definition_ref,
         xrefs_unimod=tuple(unimod_xrefs),
+        replaced_by=tuple(replaced_by),
     )
 
 

@@ -17,6 +17,26 @@ from psimodpy.models import AminoAcid, Crosslink, PsiModEntry, RelationshipType,
 _SEP = "\x00"
 
 
+def _replacement_id(entry: PsiModEntry) -> int | None:
+    """Return the one id that replaces an obsolete ``entry``, or None if there is not exactly one.
+
+    ``replaced_by`` is the OBO tag for the replacement and ``xref: Remap`` is PSI-MOD's own
+    tag for the same thing. Neither source is preferred over the other: nothing outside this
+    package ranks them, so both are read and the walk continues only when they agree on a
+    single id. Zero ids, several ``replaced_by`` tags (which the OBO 1.4 guide permits: "A
+    single obsolete term may have more than one replaced_by tag"), or two tags naming
+    different terms all leave the caller to decide, and :meth:`PsiModDatabase.resolve` stops.
+    Measured 2026-11-17: no upstream stanza carries both tags, so no real file reaches the
+    disagreement case.
+    """
+    candidates = set(entry.replaced_by)
+    if entry.xref_remap is not None:
+        candidates.add(entry.xref_remap)
+    if len(candidates) == 1:
+        return candidates.pop()
+    return None
+
+
 class PsiModDatabase:
     """In-memory database of PSI-MOD entries with multiple lookup strategies.
 
@@ -95,6 +115,15 @@ class PsiModDatabase:
         in the database (or is malformed); never raises. A live term resolves to itself,
         and ``MOD:00407`` resolves to ``MOD:00599``.
 
+        The replacement is read from the OBO ``replaced_by`` tag, of which the OBO 1.4 guide
+        says the value "can safely be used to automatically reassign instances", and from
+        PSI-MOD's own ``xref: Remap``. Neither is preferred: the walk continues only when the
+        two name exactly one id between them. A term with several ``replaced_by`` tags, or
+        with two tags that disagree, has no single replacement, so the walk stops there and
+        the caller reads :attr:`~psimodpy.models.PsiModEntry.replaced_by` itself. The
+        ``consider`` tag is not followed: the guide makes it a suggestion for a human expert
+        to review.
+
         The walk stops on the last term it can reach, so it always terminates. That term is
         obsolete when the chain has no live end, in the three cases below, so check
         ``result.is_obsolete`` to tell a dead end from a live replacement:
@@ -109,8 +138,11 @@ class PsiModDatabase:
         if entry is None:
             return None
         seen = {entry.id}
-        while entry.is_obsolete and entry.xref_remap is not None and entry.xref_remap not in seen:
-            nxt = self._by_id.get(entry.xref_remap)
+        while entry.is_obsolete:
+            target = _replacement_id(entry)
+            if target is None or target in seen:
+                break
+            nxt = self._by_id.get(target)
             if nxt is None:
                 break
             seen.add(nxt.id)

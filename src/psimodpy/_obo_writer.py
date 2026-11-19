@@ -403,6 +403,10 @@ def _write_entry(fh, entry: PsiModEntry, names: dict[int, str]) -> None:
         fh.write(_xref("Remap", f"MOD:{entry.xref_remap:05d}"))
     if entry.is_obsolete:
         fh.write("is_obsolete: true\n")
+    # After is_obsolete, because the OBO 1.4 guide says "The replaced_by tag may only be
+    # specified for obsolete terms"; written in the id order the file gave.
+    for target in entry.replaced_by:
+        fh.write(f"replaced_by: MOD:{target:05d}\n")
     fh.write("\n")
 
 

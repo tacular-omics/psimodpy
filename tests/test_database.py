@@ -1,7 +1,10 @@
 """Tests for PsiModDatabase lookup, search, and traversal."""
 
+from pathlib import Path
+
 import pytest
 
+from psimodpy import parse_obo, write_obo
 from psimodpy.models import AminoAcid, Crosslink, RelationshipType
 
 
@@ -296,3 +299,100 @@ def test_resolve_redirect_to_missing_id_returns_last_existing_term(db):
 
     a = dataclasses.replace(db.get_by_id(1), id=90001, is_obsolete=True, xref_remap=99999)
     assert PsiModDatabase([a]).resolve(90001) is a
+
+
+def test_resolve_follows_a_real_upstream_replaced_by_tag() -> None:
+    r"""OUTSIDE-SOURCED: the expected ids come from the upstream CV file, not from our code.
+
+    ``tests/data/upstream_replaced_by.obo`` holds two stanzas copied verbatim from
+    <https://raw.githubusercontent.com/HUPO-PSI/psi-mod-CV/master/PSI-MOD.obo>, downloaded
+    2026-11-17. Upstream marks MOD:00306 obsolete with ``replaced_by: MOD:02119`` and no
+    ``xref: Remap``, so every value asserted here is upstream's: the pair 00306 -> 02119, the
+    replacement's own name, and the absence of a Remap xref.
+
+    The OBO 1.4 guide, ``replaced_by``: "Gives a term which replaces an obsolete term", whose
+    value "can safely be used to automatically reassign instances".
+    """
+    path = Path(__file__).parent / "data" / "upstream_replaced_by.obo"
+    db = parse_obo(path)
+
+    # The behaviour first, so this fails on an id and not on a missing attribute: before the
+    # fix resolve(306) returned MOD:00306 itself.
+    resolved = db.resolve(306)
+    assert resolved is not None
+    assert resolved.id == 2119, "upstream says MOD:00306 is replaced by MOD:02119"
+
+    obsolete = db[306]
+    assert obsolete.is_obsolete
+    assert obsolete.xref_remap is None, "upstream uses replaced_by here, not xref: Remap"
+    assert obsolete.replaced_by == (2119,)
+    assert resolved.name == "L-leucine isomer"  # upstream's name for MOD:02119
+    assert not resolved.is_obsolete
+
+
+def test_write_obo_keeps_a_real_upstream_replaced_by_tag(tmp_path: Path) -> None:
+    """OUTSIDE-SOURCED: the line asserted is the one upstream writes, byte for byte."""
+    path = Path(__file__).parent / "data" / "upstream_replaced_by.obo"
+    upstream_line = "replaced_by: MOD:02119"
+    assert upstream_line in path.read_text(encoding="utf-8")
+
+    out = tmp_path / "round_trip.obo"
+    write_obo(parse_obo(path), out)
+    assert upstream_line in out.read_text(encoding="utf-8")
+    assert parse_obo(out)[306].replaced_by == (2119,)
+
+
+def test_resolve_stops_at_a_term_with_several_replaced_by_tags(tmp_path: Path) -> None:
+    """Several replacements name no single one, so the walk stops and the caller decides.
+
+    Not outside-sourced: no upstream PSI-MOD file carries more than one `replaced_by` tag
+    (measured 2026-11-17 on PSI-MOD.obo and PSI-MOD-newstyle.obo at master, v1.41.0 and
+    v1.40.0), so this input is constructed. It pins the documented limit, because the OBO 1.4
+    guide does allow the shape: "A single obsolete term may have more than one `replaced_by`
+    tag."
+    """
+    obo = tmp_path / "two_replacements.obo"
+    obo.write_text(
+        "format-version: 1.2\n\n"
+        "[Term]\nid: MOD:90001\nname: ambiguous\nis_obsolete: true\n"
+        "replaced_by: MOD:90002\nreplaced_by: MOD:90003\n\n"
+        "[Term]\nid: MOD:90002\nname: first\n\n"
+        "[Term]\nid: MOD:90003\nname: second\n",
+        encoding="utf-8",
+    )
+    db = parse_obo(obo)
+    # Behaviour first, so the failure is an id and not a missing attribute.
+    resolved = db.resolve(90001)
+    assert resolved is not None
+    assert resolved.id == 90001, "no single replacement, so resolve stops on the obsolete term"
+    assert db[90001].replaced_by == (90002, 90003)
+
+
+def test_resolve_needs_the_two_replacement_tags_to_agree(tmp_path: Path) -> None:
+    """Neither `replaced_by` nor `xref: Remap` is preferred, so disagreement stops the walk.
+
+    Not outside-sourced: no upstream stanza carries both tags (measured 2026-11-17 on
+    PSI-MOD.obo and PSI-MOD-newstyle.obo at master, v1.41.0 and v1.40.0), so both inputs are
+    constructed. Nothing outside this package ranks the two tags, which is why agreement, and
+    not a preference for either, is what lets `resolve` continue.
+    """
+
+    def build(name: str, remap: str, replaced: str) -> object:
+        obo = tmp_path / name
+        obo.write_text(
+            "format-version: 1.2\n\n"
+            f"[Term]\nid: MOD:90001\nname: both\nis_obsolete: true\n{remap}{replaced}\n"
+            "[Term]\nid: MOD:90002\nname: first\n\n"
+            "[Term]\nid: MOD:90003\nname: second\n",
+            encoding="utf-8",
+        )
+        return parse_obo(obo)
+
+    # Behaviour first in both cases, so a failure is an id and not a missing attribute.
+    disagree = build("disagree.obo", 'xref: Remap: "MOD:90002"\n', "replaced_by: MOD:90003\n")
+    assert disagree.resolve(90001).id == 90001, "two tags, two targets: resolve stops"
+
+    agree = build("agree.obo", 'xref: Remap: "MOD:90002"\n', "replaced_by: MOD:90002\n")
+    assert agree.resolve(90001).id == 90002, "one id between them: the walk continues"
+    assert agree[90001].replaced_by == (90002,)
+    assert agree[90001].xref_remap == 90002
