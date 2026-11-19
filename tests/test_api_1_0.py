@@ -101,6 +101,40 @@ def test_unknown_enum_value_kept_as_raw_string_with_warning(tmp_path, extra, che
     assert check(db[1])
 
 
+def test_unhandled_tags_warn_one_grouped_warning_per_tag(tmp_path):
+    path = _obo(
+        tmp_path,
+        "[Term]\n"
+        "id: MOD:00001\n"
+        "name: moved\n"
+        "consider: MOD:00003\n"
+        "alt_id: MOD:00004\n"
+        'property_value: http://example.org/p "v"\n'
+        "creation_date: 2026-01-01\n"
+        "subset: PSI-MOD-other\n",
+        _term(2, "y"),
+    )
+    with pytest.warns(UserWarning) as record:
+        db = parse_obo(path)
+    messages = [str(w.message) for w in record]
+    for tag in ("consider", "alt_id", "property_value", "creation_date", "subset"):
+        assert any(tag in m and "unrecognised" in m for m in messages), tag
+    assert [e.id for e in db] == [1, 2]
+
+
+def test_repeated_unhandled_tag_grouped_into_one_warning(tmp_path):
+    path = _obo(
+        tmp_path,
+        "[Term]\nid: MOD:00001\nname: x\nconsider: MOD:00002\nconsider: MOD:00003\n",
+        _term(2, "y"),
+    )
+    with pytest.warns(UserWarning) as record:
+        parse_obo(path)
+    consider = [str(w.message) for w in record if "consider" in str(w.message)]
+    assert len(consider) == 1
+    assert "2 unrecognised 'consider:' line(s)" in consider[0]
+
+
 def test_bundled_obo_parses_without_warnings():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -341,3 +375,85 @@ def test_uniprot_ptm_xref_both_forms(tmp_path, line):
         warnings.simplefilter("error")
         db = parse_obo(_obo(tmp_path, _term(1, "x", line)))
     assert db.get_by_id(1).xref_uniprot_ptm == "PTM-0369"  # ty: ignore[possibly-missing-attribute]
+
+
+def test_replaced_by_is_handled_and_never_reported_as_unhandled(tmp_path):
+    """`replaced_by` has been a handled tag since #105, so it must not be warned about."""
+    path = _obo(
+        tmp_path,
+        "[Term]\nid: MOD:00001\nname: moved\nis_obsolete: true\nreplaced_by: MOD:00002\n",
+        _term(2, "y"),
+    )
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        db = parse_obo(path)
+    assert [str(w.message) for w in record] == []
+    assert db[1].replaced_by == (2,)
+    assert db.resolve(1).id == 2
+
+
+def test_a_comment_line_inside_a_term_is_not_reported(tmp_path):
+    """The OBO guide, Comments: such lines are legal anywhere and parsers ignore them.
+
+    "An OBO file may contain any number of lines beginning with ``!``, at any point in the
+    file." - "These lines are ignored by parsers."
+    (<https://owlcollab.github.io/oboformat/doc/GO.format.obo-1_4.html>, OBO Format Syntactic
+    Structure, Comments; read 2026-11-18.) Reporting one as a dropped tag would report legal
+    content as lost, and because a whole comment line was its own warning key, three distinct
+    comments gave three warnings.
+    """
+    path = _obo(
+        tmp_path,
+        "[Term]\nid: MOD:00001\nname: x\n! one\n! two\n! three\n  ! indented\n",
+        _term(2, "y"),
+    )
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        db = parse_obo(path)
+    assert [str(w.message) for w in record] == []
+    assert [e.id for e in db] == [1, 2]
+    assert db[1].name == "x"
+
+
+def test_lines_with_no_tag_share_one_warning_and_indentation_is_stripped(tmp_path):
+    """Keying by the whole line gave one warning per line, which grouping exists to prevent."""
+    path = _obo(
+        tmp_path,
+        "[Term]\nid: MOD:00001\nname: x\ngarbage a\ngarbage b\ngarbage c\nwith space: v\n",
+        _term(2, "y"),
+    )
+    with pytest.warns(UserWarning) as record:
+        parse_obo(path)
+    messages = [str(w.message) for w in record]
+    no_tag = [m for m in messages if "(no tag)" in m]
+    assert len(no_tag) == 1, messages
+    assert "4 unrecognised '(no tag)' line(s)" in no_tag[0]
+
+    indented = _obo(
+        tmp_path,
+        "[Term]\nid: MOD:00003\nname: y\nconsider: MOD:00002\n  consider: MOD:00004\n",
+        _term(2, "z"),
+    )
+    with pytest.warns(UserWarning) as record:
+        parse_obo(indented)
+    consider = [str(w.message) for w in record if "consider:" in str(w.message)]
+    assert len(consider) == 1, "an indented tag groups with the flush one"
+    assert "2 unrecognised 'consider:' line(s)" in consider[0]
+
+
+def test_is_obsolete_false_is_not_reported_as_dropped(tmp_path):
+    """`false` is the tag's legal default value, so nothing is unhandled about it.
+
+    The OBO 1.4 guide, `is_obsolete`: "Allowable values are "true" and "false" (false is
+    assumed if this tag is not present)." A value outside those two is still reported.
+    """
+    path = _obo(tmp_path, "[Term]\nid: MOD:00001\nname: x\nis_obsolete: false\n", _term(2, "y"))
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        db = parse_obo(path)
+    assert [str(w.message) for w in record] == []
+    assert db[1].is_obsolete is False
+
+    odd = _obo(tmp_path, "[Term]\nid: MOD:00003\nname: y\nis_obsolete: TRUE\n", _term(2, "z"))
+    with pytest.warns(UserWarning, match="is_obsolete:"):
+        parse_obo(odd)

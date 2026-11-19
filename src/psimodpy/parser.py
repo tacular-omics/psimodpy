@@ -275,6 +275,31 @@ def _parse_mod_id(mod_str: str) -> int:
     return int(mod_str[4:])
 
 
+_NO_TAG_KEY = "(no tag)"
+
+
+def _unhandled_key(line: str) -> str | None:
+    """Return the warning key for a ``[Term]`` line no rule handled, or None to stay silent.
+
+    None is for a comment line. The OBO 1.4 guide, under Comments: "An OBO file may contain
+    any number of lines beginning with ``!``, at any point in the file." - "These lines are
+    ignored by parsers." Reporting one would be reporting legal content as lost.
+
+    Otherwise the key is the tag, so lines sharing a tag group into one warning. A line that
+    is not tag-shaped - no colon, or something with whitespace in front of the colon - has no
+    tag to group by, and keying it by its own text would give one warning per line, which is
+    what the grouping exists to avoid; all of those share ``(no tag)``. Leading whitespace is
+    stripped first, so an indented ``consider:`` groups with a flush one.
+    """
+    stripped = line.lstrip()
+    if stripped.startswith("!"):
+        return None
+    tag = stripped.partition(":")[0]
+    if ":" not in stripped or not tag or any(ch.isspace() for ch in tag):
+        return _NO_TAG_KEY
+    return f"{tag}:"
+
+
 def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues) -> PsiModEntry | None:
     """Parse the numbered OBO lines of one [Term] block into a PsiModEntry.
 
@@ -337,6 +362,10 @@ def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues
             comment = _unescape_obo(line[9:])
         elif line == "is_obsolete: true":
             is_obsolete = True
+        elif line == "is_obsolete: false":
+            # The guide's allowable values are "true" and "false", and false is the default
+            # anyway, so there is nothing to record and nothing unhandled to report.
+            pass
         elif line.startswith("replaced_by: "):
             m = _REPLACED_BY_RE.match(line)
             if m:
@@ -361,6 +390,10 @@ def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues
                         unimod_xrefs.append(xref_val)
             else:
                 issues.line("xref:", lineno, line)
+        else:
+            key = _unhandled_key(line)
+            if key is not None:
+                issues.line(key, lineno, line)
 
     if entry_id is None or name is None:
         first = block[0][0] if block else 0
@@ -441,9 +474,13 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
     Recoverable problems are reported with ``warnings.warn`` and do not abort the
     load: a [Term] without an id or name is skipped; an unknown synonym type,
     relationship type, TermSpec or Source is kept as a plain string; and a line
-    whose syntax is not recognised is dropped. A ``def:``, ``synonym:`` or ``xref:``
-    line whose quoted value holds an unescaped quote is one of those: it is reported
-    and dropped rather than silently truncated at the quote.
+    whose syntax is not recognised, or whose tag no rule handles, is dropped. A
+    ``def:``, ``synonym:`` or ``xref:`` line whose quoted value holds an unescaped
+    quote is one of those: it is reported and dropped rather than silently truncated
+    at the quote. An unhandled tag, such as ``consider:`` or ``property_value:``, is
+    reported the same way, one warning per tag, so content psimodpy does not read is
+    visible instead of vanishing. A comment line beginning with ``!`` is not reported,
+    nor is ``is_obsolete: false``.
 
     OBO 1.2 escapes are decoded in every value except ``definition_ref``, which keeps
     the escapes that carry citation-list syntax (``\\,`` ``\\"`` ``\\{`` ``\\}``

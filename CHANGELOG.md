@@ -39,6 +39,21 @@
   `is_descendant_of` itself; an unknown or malformed id gives `[]` / `False`. `get_parents`,
   `get_children`, `search_mass` and the REST and MCP tools are unchanged. Thanks @ritanjay.
 
+### Fixed
+
+- OBO parser now warns about every `[Term]` line whose tag no rule handles, such as
+  `consider:`, `alt_id:`, `property_value:`, `creation_date:` or a `subset:` value other than
+  `PSI-MOD-slim`, instead of dropping those lines silently. One grouped warning per tag names
+  the tag, how many lines carried it and the first of them, like the existing
+  unrecognised-line warnings; the entry still parses. Leading whitespace is stripped before
+  grouping, and lines that are not tag-shaped share one `(no tag)` warning rather than one
+  warning each. A comment line is not reported: the OBO guide says lines beginning with `!`
+  "are ignored by parsers". Nor is `is_obsolete: false`, which is the tag's legal default.
+  **Who sees a difference:** anyone loading a file that uses tags psimodpy does not read -
+  upstream's `PSI-MOD-newstyle.obo` is the case that matters, where 16,236 `property_value:`
+  lines carry every mass, formula, origin and source and used to vanish without a word.
+  `load()` on the bundled ontology still emits no warnings. Thanks @draarivpatel-ui.
+
 ## [1.3.0] (2026-11-16)
 
 ### Added
