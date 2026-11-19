@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import importlib.resources
 import warnings
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 from psimodpy._mass import WHERE_ANY_C, WHERE_ANY_N, WHERE_ANYWHERE, MassIndex, Slot
@@ -300,6 +300,63 @@ class PsiModDatabase:
     def get_children(self, entry: PsiModEntry) -> list[PsiModEntry]:
         """Return entries that have this entry as a direct parent."""
         return [self._by_id[cid] for cid in self._children.get(entry.id, []) if cid in self._by_id]
+
+    def get_ancestors(self, entry: PsiModEntry | int | str) -> list[PsiModEntry]:
+        """Return every term reachable by following ``is_a`` upward, each once.
+
+        Takes an entry or any id ``get_by_id`` takes. The order is breadth-first: direct parents
+        first (in ``get_parents`` order), then their parents, and so on; a term reached by
+        several paths appears once, at its shallowest level. A term is not its own ancestor,
+        even in an ``is_a`` cycle. A root, an unknown id or a malformed id gives ``[]``.
+        """
+        start = self._as_entry(entry)
+        if start is None:
+            return []
+        return self._walk(start, lambda e: e.is_a)
+
+    def get_descendants(self, entry: PsiModEntry | int | str) -> list[PsiModEntry]:
+        """Return every term reachable by following ``is_a`` downward, each once.
+
+        Same rules as :meth:`get_ancestors`: breadth-first, direct children first (in
+        ``get_children`` order), each term once, never the term itself, ``[]`` for a leaf or an
+        unknown id.
+        """
+        start = self._as_entry(entry)
+        if start is None:
+            return []
+        return self._walk(start, lambda e: self._children.get(e.id, ()))
+
+    def is_descendant_of(self, entry: PsiModEntry | int | str, ancestor: PsiModEntry | int | str) -> bool:
+        """Return True if ``ancestor`` is reachable from ``entry`` by following ``is_a`` upward.
+
+        Both arguments take an entry or an id. A term is not its own descendant, so
+        ``is_descendant_of(x, x)`` is False; an unknown or malformed id on either side gives False.
+        """
+        start = self._as_entry(entry)
+        target = self._as_entry(ancestor)
+        if start is None or target is None or start.id == target.id:
+            return False
+        return any(e.id == target.id for e in self._walk(start, lambda e: e.is_a))
+
+    def _as_entry(self, entry: PsiModEntry | int | str) -> PsiModEntry | None:
+        return entry if isinstance(entry, PsiModEntry) else self.get_by_id(entry)
+
+    def _walk(self, start: PsiModEntry, step: Callable[[PsiModEntry], Iterable[int]]) -> list[PsiModEntry]:
+        """Breadth-first walk from ``start`` over ``step`` ids; each term once, ``start`` excluded."""
+        seen = {start.id}
+        out: list[PsiModEntry] = []
+        frontier = [start]
+        while frontier:
+            nxt: list[PsiModEntry] = []
+            for current in frontier:
+                for nid in step(current):
+                    found = self._by_id.get(nid)
+                    if found is not None and nid not in seen:
+                        seen.add(nid)
+                        out.append(found)
+                        nxt.append(found)
+            frontier = nxt
+        return out
 
     def get_related(self, entry: PsiModEntry, rel_type: RelationshipType) -> list[PsiModEntry]:
         """Return entries reachable from entry via the given relationship type."""
