@@ -101,6 +101,41 @@ def test_unknown_enum_value_kept_as_raw_string_with_warning(tmp_path, extra, che
     assert check(db[1])
 
 
+def test_unhandled_tags_warn_one_grouped_warning_per_tag(tmp_path):
+    path = _obo(
+        tmp_path,
+        "[Term]\n"
+        "id: MOD:00001\n"
+        "name: moved\n"
+        "replaced_by: MOD:00002\n"
+        "consider: MOD:00003\n"
+        "alt_id: MOD:00004\n"
+        'property_value: http://example.org/p "v"\n'
+        "creation_date: 2026-01-01\n"
+        "subset: PSI-MOD-other\n",
+        _term(2, "y"),
+    )
+    with pytest.warns(UserWarning) as record:
+        db = parse_obo(path)
+    messages = [str(w.message) for w in record]
+    for tag in ("replaced_by", "consider", "alt_id", "property_value", "creation_date", "subset"):
+        assert any(tag in m and "unrecognised" in m for m in messages), tag
+    assert [e.id for e in db] == [1, 2]
+
+
+def test_repeated_unhandled_tag_grouped_into_one_warning(tmp_path):
+    path = _obo(
+        tmp_path,
+        "[Term]\nid: MOD:00001\nname: x\nconsider: MOD:00002\nconsider: MOD:00003\n",
+        _term(2, "y"),
+    )
+    with pytest.warns(UserWarning) as record:
+        parse_obo(path)
+    consider = [str(w.message) for w in record if "consider" in str(w.message)]
+    assert len(consider) == 1
+    assert "2" in consider[0]
+
+
 def test_bundled_obo_parses_without_warnings():
     with warnings.catch_warnings():
         warnings.simplefilter("error")

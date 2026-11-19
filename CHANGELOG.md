@@ -39,6 +39,14 @@
   `is_descendant_of` itself; an unknown or malformed id gives `[]` / `False`. `get_parents`,
   `get_children`, `search_mass` and the REST and MCP tools are unchanged. Thanks @ritanjay.
 
+### Fixed
+
+- OBO parser now warns about every `[Term]` line whose tag no rule handles, such as
+  `replaced_by:`, `consider:`, `alt_id:`, `property_value:`, `creation_date:` or a
+  `subset:` value other than `PSI-MOD-slim`, instead of dropping those lines silently.
+  One grouped warning per tag names the tag, how many lines carried it and the first of
+  them, like the existing unrecognised-line warnings; the entry still parses.
+
 ## [1.3.0] (2026-11-16)
 
 ### Added
