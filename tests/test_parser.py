@@ -360,3 +360,22 @@ class TestSourceWithNoTermStanza:
         psimodpy.write_obo(psimodpy.PsiModDatabase([]), out)
         with pytest.raises(psimodpy.PsimodParseError):
             psimodpy.parse_obo(out)
+
+
+def test_a_replaced_by_line_that_is_not_a_mod_id_is_dropped_with_a_warning(tmp_path):
+    """A `replaced_by` value must be a term id, so anything else is reported, not guessed at.
+
+    Not outside-sourced: the OBO 1.4 guide says the tag "Gives a term which replaces an
+    obsolete term", and `MOD:NNNNN` is how this ontology writes one, but the guide does not
+    say what a reader should do with a malformed value. Dropping it with a warning is what
+    every other unrecognised line in this parser does.
+    """
+    obo = tmp_path / "bad_replaced_by.obo"
+    obo.write_text(
+        "format-version: 1.2\n\n[Term]\nid: MOD:90001\nname: n\nis_obsolete: true\nreplaced_by: nonsense\n",
+        encoding="utf-8",
+    )
+    with pytest.warns(UserWarning, match="replaced_by:"):
+        entry = psimodpy.parse_obo(obo)[90001]
+    assert entry.replaced_by == ()
+    assert entry.is_obsolete

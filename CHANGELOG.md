@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- `PsiModEntry.replaced_by` holds the ids from the OBO `replaced_by` tags of an obsolete term,
+  and `PsiModDatabase.resolve` follows that tag when PSI-MOD's own `xref: Remap` is absent, so
+  an obsolete term that names its replacement the standard way now resolves to it. The OBO 1.4
+  guide says the tag "Gives a term which replaces an obsolete term" and that its value "can
+  safely be used to automatically reassign instances". `write_obo` writes the tag back, after
+  `is_obsolete`, because the guide allows it only on obsolete terms. The tag is also read from
+  files whose terms carry several of them, but `resolve` stops at such a term, because the
+  guide permits more than one and they name no single replacement; read the attribute in that
+  case. The `consider` tag is still not read: the guide makes it a suggestion for a human
+  expert to review, not a replacement. **Who sees a difference:** anyone loading an OBO file
+  that uses `replaced_by`, which today means upstream's own `PSI-MOD.obo` (one term, MOD:00306
+  to MOD:02119) and `PSI-MOD-newstyle.obo` (67 terms). The bundled ontology has none, so
+  `load()` with no argument is unchanged.
+
 ## [1.3.0] (2026-11-16)
 
 ### Added
