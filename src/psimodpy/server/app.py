@@ -6,8 +6,9 @@ import json
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
+from fastapi.routing import APIRoute
 from mcp.server import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
@@ -157,10 +158,51 @@ class _MCPWrapper:
             await http_app(scope, receive, send)
 
 
+def _declared_query_params(route: APIRoute) -> frozenset[str]:
+    """The query-parameter names ``route`` itself declares.
+
+    Taken from the route's own parsed signature rather than from a list kept here, so a
+    route added later is covered without touching this function and a renamed parameter
+    cannot drift out of step with the check.
+    """
+    return frozenset(field.alias for field in route.dependant.query_params)
+
+
+# The dashboard and its payload are opened in a browser, where a shared link may carry a
+# tracking parameter, and answering 422 would hide the page over something harmless. The
+# API routes are machine-facing, where ignoring a parameter is the worse failure: before
+# this, `/api/entries?include_obsolet=true` answered 200 with the 1971 non-obsolete terms
+# and no hint that the caller had asked for all 2116 and been refused in silence.
+_UNVALIDATED_QUERY_PATHS = frozenset({"/", "/data.json"})
+
+
+def _reject_unknown_query_params(request: Request) -> None:
+    """422 for a query parameter the matched route does not declare.
+
+    Registered once as an app-wide dependency, so every API route gets it and no route
+    carries its own copy. A mounted sub-application does not run the parent app's
+    dependencies, so the MCP endpoint at ``/mcp`` is unaffected.
+    """
+    route = request.scope.get("route")
+    if not isinstance(route, APIRoute) or route.path in _UNVALIDATED_QUERY_PATHS:
+        return
+    accepted = _declared_query_params(route)
+    unknown = sorted(set(request.query_params) - accepted)
+    if not unknown:
+        return
+    names = ", ".join(repr(name) for name in unknown)
+    allowed = ", ".join(sorted(accepted)) if accepted else "no query parameters"
+    raise HTTPException(
+        status_code=422,
+        detail=f"unknown query parameter{'s' if len(unknown) > 1 else ''} {names}; {route.path} accepts: {allowed}",
+    )
+
+
 app = FastAPI(
     title="psimodpy API",
     description="REST + MCP interface to the PSI-MOD ontology.",
     version=psimodpy.__version__,
+    dependencies=[Depends(_reject_unknown_query_params)],
 )
 
 

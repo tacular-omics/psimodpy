@@ -310,3 +310,99 @@ def test_health_is_a_pydantic_model() -> None:
     from psimodpy.server.models import HealthResponse
 
     assert isinstance(health(), HealthResponse)
+
+
+# --- unknown query parameters ------------------------------------------------------------
+
+_SAMPLE_REQUESTS = {
+    "/api/health": "/api/health",
+    "/api/entries": "/api/entries?limit=2",
+    "/api/entries/{id}": "/api/entries/46",
+    "/api/entries/by-name/{name:path}": "/api/entries/by-name/alkylated residue",
+    "/api/entries/{id}/parents": "/api/entries/46/parents",
+    "/api/entries/{id}/children": "/api/entries/46/children",
+    "/api/by-origin/{aa}": "/api/by-origin/S",
+    "/api/search": "/api/search?q=phospho&limit=2",
+}
+
+
+def _api_route_paths() -> list[str]:
+    """Every ``/api`` route the app declares, so a route added later is covered here too."""
+    from fastapi.routing import APIRoute
+
+    return sorted(r.path for r in app.routes if isinstance(r, APIRoute) and r.path.startswith("/api"))
+
+
+def test_every_api_route_has_a_sample_request() -> None:
+    """Guard for the table above: a new API route must be added to it, not silently skipped."""
+    assert sorted(_SAMPLE_REQUESTS) == _api_route_paths()
+
+
+@pytest.mark.parametrize("route_path", sorted(_SAMPLE_REQUESTS))
+def test_rest_unknown_query_parameter_is_rejected_on_every_api_route(route_path: str) -> None:
+    sample = _SAMPLE_REQUESTS[route_path]
+    joiner = "&" if "?" in sample else "?"
+    with TestClient(app) as client:
+        assert client.get(sample).status_code == 200, sample
+        r = client.get(f"{sample}{joiner}bogus=1")
+    assert r.status_code == 422, (sample, r.status_code)
+    detail = r.json()["detail"]
+    assert "unknown query parameter 'bogus'" in detail
+    assert route_path in detail, detail
+
+
+def test_rest_a_misspelled_include_obsolete_is_rejected_instead_of_ignored() -> None:
+    """The case that motivates this: the typo used to answer 200 with the other count.
+
+    `include_obsolete=true` gives all 2116 terms and the default gives the 1971 non-obsolete
+    ones, so a silently ignored `include_obsolet=true` answered a different question than the
+    one asked, with nothing in the response to say so.
+    """
+    with TestClient(app) as client:
+        assert client.get("/api/entries?limit=1&include_obsolete=true").json()["total"] == len(_db)
+        assert client.get("/api/entries?limit=1").json()["total"] == len(_db.filter())
+        r = client.get("/api/entries?limit=1&include_obsolet=true")
+    assert r.status_code == 422
+    assert r.json()["detail"] == (
+        "unknown query parameter 'include_obsolet'; /api/entries accepts: include_obsolete, limit, offset"
+    )
+
+
+def test_rest_several_unknown_query_parameters_are_all_named() -> None:
+    with TestClient(app) as client:
+        r = client.get("/api/entries?b=2&a=1")
+    assert r.status_code == 422
+    assert "unknown query parameters 'a', 'b'" in r.json()["detail"]
+
+
+def test_rest_a_route_with_no_query_parameters_says_so() -> None:
+    with TestClient(app) as client:
+        r = client.get("/api/health?x=1")
+    assert r.status_code == 422
+    assert r.json()["detail"] == "unknown query parameter 'x'; /api/health accepts: no query parameters"
+
+
+def test_rest_known_query_parameters_still_work() -> None:
+    with TestClient(app) as client:
+        assert client.get("/api/entries?limit=3&offset=1&include_obsolete=true").status_code == 200
+        assert client.get("/api/search?q=phospho&limit=3").status_code == 200
+        assert client.get("/api/entries?limit=501").status_code == 422, "the existing bounds still apply"
+        assert client.get("/api/search").status_code == 422, "q is still required"
+
+
+def test_the_dashboard_and_its_payload_ignore_stray_query_parameters() -> None:
+    """A shared link may carry a tracking parameter; the page must not 422 over it."""
+    with TestClient(app) as client:
+        page = client.get("/?utm_source=newsletter")
+        data = client.get("/data.json?utm_source=newsletter")
+    assert page.status_code == 200
+    assert data.status_code == 200
+    assert data.headers["cache-control"] == "public, max-age=3600"
+    assert data.json() == TestClient(app).get("/data.json").json()
+
+
+def test_the_mcp_mount_is_untouched_by_the_query_check(mcp_client: TestClient) -> None:
+    """A mounted sub-application does not run the parent app's dependencies."""
+    _mcp(mcp_client, "initialize", _INIT_PARAMS)
+    resp = _mcp(mcp_client, "tools/call", {"name": "get_by_id", "arguments": {"id": "46"}}, req_id=2)
+    assert resp["result"]["structuredContent"]["result"]["accession"] == "MOD:00046"

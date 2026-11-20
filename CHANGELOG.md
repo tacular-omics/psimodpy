@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Every `/api/*` route answers an unknown query parameter with HTTP 422 naming it and listing
+  what the route accepts, instead of ignoring it and answering 200. A misspelling was the
+  worst of it: `/api/entries?include_obsolet=true` returned the 1971 non-obsolete terms with
+  nothing to say the caller's request for all 2116 had been dropped. The accepted names come
+  from each route's own signature, so a route added later is covered without a list to
+  maintain. `/` and `/data.json` keep ignoring stray parameters, because a shared dashboard
+  link may carry a tracking one and hiding the page over that would be worse; the `/mcp`
+  endpoint is a mounted sub-application and does not run app dependencies, so it is
+  unaffected. **Who sees a difference:** a client that sends a parameter psimodpy never read
+  now gets a 422 where it used to get an answer to a different question.
+
 ### Added
 
 - `PsiModEntry.replaced_by` holds the ids from the OBO `replaced_by` tags of an obsolete term,
