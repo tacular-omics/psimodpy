@@ -24,8 +24,8 @@ import psimodpy
 def test_obsolete_trailing_fields(tmp_path, value, expected):
     obo = tmp_path / "test.obo"
     obo.write_text(
-        'format-version: 1.4\n\n[Term]\nid: MOD:00001\nname: x\ndef: "d" [PubMed:1]\n'
-        f"is_obsolete: {value}\n\n", encoding="utf-8"
+        f'format-version: 1.4\n\n[Term]\nid: MOD:00001\nname: x\ndef: "d" [PubMed:1]\nis_obsolete: {value}\n\n',
+        encoding="utf-8",
     )
     with warnings.catch_warnings(record=True) as seen:
         warnings.simplefilter("always")
@@ -39,8 +39,8 @@ def test_obsolete_trailing_fields(tmp_path, value, expected):
 def test_malformed_obsolete_is_not_silently_accepted(tmp_path, value):
     obo = tmp_path / "test.obo"
     obo.write_text(
-        'format-version: 1.4\n\n[Term]\nid: MOD:00001\nname: x\ndef: "d" [PubMed:1]\n'
-        f"is_obsolete: {value}\n\n", encoding="utf-8"
+        f'format-version: 1.4\n\n[Term]\nid: MOD:00001\nname: x\ndef: "d" [PubMed:1]\nis_obsolete: {value}\n\n',
+        encoding="utf-8",
     )
     with pytest.warns(UserWarning, match="unrecognised 'is_obsolete:'"):
         entry = psimodpy.parse_obo(obo)[1]
