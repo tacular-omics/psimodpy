@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 # Compiled regexes (module-level, compiled once)
 _OBO_TRAILING = r'(?:\s*\{(?:[^}"\\]|\\.|"(?:[^"\\]|\\.)*")*\})?(?:\s*!.*)?\s*$'
+_IS_OBSOLETE_RE = re.compile(rf"^is_obsolete:\s+(true|false){_OBO_TRAILING}")
 _DEF_RE = re.compile(rf'^def:\s+"((?:[^"\\]|\\.)*)"\s+\[((?:[^\]"\\]|\\.|"(?:[^"\\]|\\.)*")*)\]{_OBO_TRAILING}')
 _SYNONYM_RE = re.compile(rf'^synonym:\s+"((?:[^"\\]|\\.)*)"\s+(\w+)\s+(\S+)\s+\[\]{_OBO_TRAILING}')
 _IS_A_RE = re.compile(r"^is_a:\s+MOD:(\d+)")
@@ -360,12 +361,11 @@ def _build_entry(block: list[tuple[int, str]], path: Path | str, issues: _Issues
             in_slim_subset = True
         elif line.startswith("comment: "):
             comment = _unescape_obo(line[9:])
-        elif line == "is_obsolete: true":
-            is_obsolete = True
-        elif line == "is_obsolete: false":
-            # The guide's allowable values are "true" and "false", and false is the default
-            # anyway, so there is nothing to record and nothing unhandled to report.
-            pass
+        elif obsolete_match := _IS_OBSOLETE_RE.fullmatch(line):
+            # OBO 1.4 permits trailing modifiers and comments on every tag-value pair.
+            # Preserve the default-false behavior (including repeated false tags).
+            if obsolete_match.group(1) == "true":
+                is_obsolete = True
         elif line.startswith("replaced_by: "):
             m = _REPLACED_BY_RE.match(line)
             if m:

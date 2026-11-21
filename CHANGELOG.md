@@ -54,6 +54,12 @@
 
 ### Fixed
 
+- `is_obsolete` now accepts OBO 1.4 trailing comments, modifiers and whitespace after
+  `true` or `false`. Previously these lines were dropped as unrecognised and an
+  obsolete term could incorrectly load as active. Invalid boolean values still
+  produce a warning. **Who sees a difference:** callers parsing external OBO
+  files with annotated `is_obsolete` tags; the bundled PSI-MOD data is unchanged.
+
 - OBO parser now warns about every `[Term]` line whose tag no rule handles, such as
   `consider:`, `alt_id:`, `property_value:`, `creation_date:` or a `subset:` value other than
   `PSI-MOD-slim`, instead of dropping those lines silently. One grouped warning per tag names
