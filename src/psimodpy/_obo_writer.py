@@ -415,11 +415,13 @@ def write_obo(
     path: Path | str,
     *,
     header_lines: Iterable[str] = (),
+    raw_stanza_lines: Iterable[str] = (),
 ) -> Path:
     """Write PSI-MOD entries to an OBO-format file.
 
     The output is suitable for re-parsing with parse_obo(). Returns the
-    resolved Path.
+    resolved Path. Non-term stanzas in ``raw_stanza_lines`` are emitted after
+    the terms without interpreting their contents.
     """
     materialized = list(entries)
     names = {e.id: e.name for e in materialized}
@@ -437,4 +439,6 @@ def write_obo(
             fh.write("\n")
         for entry in materialized:
             _write_entry(fh, entry, names)
+        for line in raw_stanza_lines:
+            fh.write(line + "\n")
     return out

@@ -121,12 +121,14 @@ claude mcp add psi-mod http://localhost:8000/mcp --transport http
 | `psimodpy.parse_obo(path)` | Parse an OBO file into a database. |
 | `psimodpy.download(dest=None, *, force=False)` | Download the latest OBO file from GitHub. |
 | `psimodpy.write_tsv(entries, path, *, delimiter)` | Write entries to a TSV (or CSV) file. |
-| `psimodpy.write_obo(entries, path, *, header_lines)` | Write entries back to PSI-MOD OBO format. |
+| `psimodpy.write_obo(entries, path, *, header_lines, raw_stanza_lines)` | Write entries back to PSI-MOD OBO format. |
 
 **`PsiModDatabase`**: `db[id]`, `get_by_id`, `resolve`, `get_by_name`, `search`, `get_by_origin`,
 `get_by_site`, `search_mass`, `get_parents`, `get_children`, `get_ancestors`, `get_descendants`,
 `is_descendant_of`, `get_related`, `filter`,
-`write_tsv`, `write_obo`, `header_lines`.
+`write_tsv`, `write_obo`, `header_lines`, `raw_stanza_lines`.
+Non-term OBO stanzas are kept as raw lines and written after the terms, including
+when `load(include_obsolete=False)` filters out obsolete entries.
 
 `search_mass(delta, *, tolerance=0.01, tolerance_unit="da", site=None, position=None,
 include_obsolete=False)` returns `(entry, delta - diff_mono)` pairs within `tolerance` Da
