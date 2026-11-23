@@ -461,7 +461,8 @@ def parse_obo(path: Path | str) -> PsiModDatabase:
         path: Path to the OBO file (str or Path).
 
     Returns:
-        A PsiModDatabase populated with all parsed entries.
+        A PsiModDatabase populated with all parsed entries. Other stanzas are
+        preserved in ``raw_stanza_lines`` without interpreting their contents.
 
     Raises:
         PsimodParseError: for a malformed id, mass, charge or remap value (the message
@@ -506,6 +507,8 @@ def _parse_obo(path: Path, shown: Path | str) -> PsiModDatabase:
     issues = _Issues()
     entries: list[PsiModEntry] = []
     header_lines: list[str] = []
+    raw_stanza_lines: list[str] = []
+    in_raw_stanza = False
     current_block: list[tuple[int, str]] = []
     in_term = False
     past_header = False
@@ -525,6 +528,7 @@ def _parse_obo(path: Path, shown: Path | str) -> PsiModDatabase:
                     flush()
                 seen_term = True
                 in_term = True
+                in_raw_stanza = False
                 past_header = True
                 current_block = []
                 continue
@@ -534,6 +538,8 @@ def _parse_obo(path: Path, shown: Path | str) -> PsiModDatabase:
                 if in_term and current_block:
                     flush()
                 in_term = False
+                in_raw_stanza = True
+                raw_stanza_lines.append(line)
                 past_header = True
                 current_block = []
                 continue
@@ -547,6 +553,8 @@ def _parse_obo(path: Path, shown: Path | str) -> PsiModDatabase:
                     current_block = []
                 else:
                     current_block.append((lineno, line))
+            elif in_raw_stanza:
+                raw_stanza_lines.append(line)
             elif not past_header:
                 header_lines.append(line)
 
@@ -563,4 +571,4 @@ def _parse_obo(path: Path, shown: Path | str) -> PsiModDatabase:
     issues.warn(shown)
     while header_lines and header_lines[-1] == "":
         header_lines.pop()
-    return PsiModDatabase(entries, header_lines=tuple(header_lines))
+    return PsiModDatabase(entries, header_lines=tuple(header_lines), raw_stanza_lines=tuple(raw_stanza_lines))

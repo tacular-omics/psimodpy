@@ -49,12 +49,14 @@ class PsiModDatabase:
         entries: Iterable[PsiModEntry],
         *,
         header_lines: tuple[str, ...] = (),
+        raw_stanza_lines: tuple[str, ...] = (),
     ) -> None:
         self._by_id: dict[int, PsiModEntry] = {}
         self._by_name_lower: dict[str, PsiModEntry] = {}
         self._by_origin: dict[str, list[PsiModEntry]] = {}
         self._children: dict[int, list[int]] = {}
         self.header_lines: tuple[str, ...] = header_lines
+        self.raw_stanza_lines: tuple[str, ...] = raw_stanza_lines
 
         for entry in entries:
             if entry.id in self._by_id:
@@ -397,7 +399,9 @@ class PsiModDatabase:
         """Serialize all entries to PSI-MOD OBO format."""
         from psimodpy._obo_writer import write_obo
 
-        return write_obo(self._by_id.values(), path, header_lines=self.header_lines)
+        return write_obo(
+            self._by_id.values(), path, header_lines=self.header_lines, raw_stanza_lines=self.raw_stanza_lines
+        )
 
 
 def _fields(entry: PsiModEntry) -> list[str]:
@@ -457,7 +461,8 @@ def load(
             ``source`` or ``refresh``. Default False: a new database each call.
 
     Returns:
-        A PsiModDatabase; ``header_lines`` is kept whatever ``include_obsolete`` is.
+        A PsiModDatabase; ``header_lines`` and ``raw_stanza_lines`` are kept
+        whatever ``include_obsolete`` is.
 
     Raises:
         ValueError: if both ``source`` and ``refresh=True`` are given, or ``cache=True``
@@ -483,7 +488,11 @@ def load(
             db = parse_obo(Path(path))
 
     if not include_obsolete:
-        return PsiModDatabase((e for e in db if not e.is_obsolete), header_lines=db.header_lines)
+        return PsiModDatabase(
+            (e for e in db if not e.is_obsolete),
+            header_lines=db.header_lines,
+            raw_stanza_lines=db.raw_stanza_lines,
+        )
     return db
 
 

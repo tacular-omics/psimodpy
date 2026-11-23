@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Preserve raw non-term OBO stanzas through parsing, filtered loading and OBO export,
+  so relationship definitions and unknown stanza kinds are not silently lost.
+
 - Every `/api/*` route answers an unknown query parameter with HTTP 422 naming it and listing
   what the route accepts, instead of ignoring it and answering 200. A misspelling was the
   worst of it: `/api/entries?include_obsolet=true` returned the 1971 non-obsolete terms with

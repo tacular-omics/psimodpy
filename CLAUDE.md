@@ -84,7 +84,10 @@ scripts/             example.py (API tour), export_json.py (docs/data.json),
                      release_version.py (shared release helper; canonical copy in workspace templates/)
 ```
 
-Data flow: `load()` -> `parse_obo(bundled path)` -> `PsiModDatabase`. The server
+Data flow: `load()` -> `parse_obo(bundled path)` -> `PsiModDatabase`. Non-term
+stanzas are kept as uninterpreted `raw_stanza_lines`, retained when obsolete terms
+are excluded, and written after the terms.
+The server
 calls `psimodpy.load()` once at import (obsolete terms included) and serves from it.
 
 ### HTTP server (`psimodpy.server.app:app`)
@@ -130,11 +133,11 @@ From `psimodpy/__init__.py` (`__all__`):
   `download(dest=None, *, force=False)`; deprecated `load_from(path)`, `download_obo`.
 - Errors: `PsimodError`, `PsimodParseError`, `PsimodKeyError`.
 - Writing: `write_tsv(entries, path, *, delimiter="\t")`,
-  `write_obo(entries, path, *, header_lines=())`.
+  `write_obo(entries, path, *, header_lines=(), raw_stanza_lines=())`.
 - Database: `PsiModDatabase` with `db[id]` (PsimodKeyError, a KeyError), `get_by_id`, `resolve(id)` (follows `xref_remap`, cycle-safe), `get_by_name`,
   `search`, `get_by_origin`, `get_parents`, `get_children`, `get_ancestors(entry|id)`, `get_descendants(entry|id)` (transitive `is_a`, BFS, each once, excluding the term), `is_descendant_of(entry|id, ancestor)`, `get_related(entry, rel_type)`,
   `filter(*, include_obsolete=False, slim_only=False)`, `write_tsv`, `write_obo`,
-  `header_lines`, `len()`, iteration.
+  `header_lines`, `raw_stanza_lines`, `len()`, iteration.
 - Models: `PsiModEntry` (computed `dict_composition`, `dict_formula`, `proforma_formula`;
   deprecated `dict_diff_formula`, `proforma_diff_formula`), `Synonym`, `Relationship`, `Crosslink`.
 - Enums: `AminoAcid`, `SynonymType`, `RelationshipType`, `TermSpec`, `Source`.
